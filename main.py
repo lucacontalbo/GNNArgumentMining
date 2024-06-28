@@ -32,38 +32,25 @@ def run():
     else:
       processor = StudentEssayProcessor(config)
 
-    path_train = DATA_PATH / "student_essay/train_essay.txt"
-    path_dev = DATA_PATH / "student_essay/dev_essay.txt"
-    path_test = DATA_PATH / "student_essay/test_essay.txt"
+    path_data = DATA_PATH / "student_essay.csv"
   elif config["dataset"] == "debate":
     if config["injection"]:
       processor = DebateWithDiscourseInjectionProcessor(config)
     else:
       processor = DebateProcessor(config)
 
-    path_train = DATA_PATH / "debate/train_debate_concept.txt"
-    path_dev = DATA_PATH / "debate/dev_debate_concept.txt"
-    path_test = DATA_PATH / "debate/test_debate_concept.txt"
+    path_data = DATA_PATH / "debate.csv"
   elif config["dataset"] == "m-arg":
     if config["injection"]:
       processor = MARGWithDiscourseInjectionProcessor(config)
     else:
       processor = MARGProcessor(config)
 
-    path_train = DATA_PATH / "m-arg/presidential_final.csv"
-    path_dev = path_train
-    path_test = path_train
+    path_data = DATA_PATH / "presidential_final.csv"
   else:
     raise ValueError(f"{config['dataset']} is not a valid database name (choose between 'student_essay', 'debate' and 'm-arg')")
 
-  data_train = processor.read_input_files(path_train, name="train")
-  if config["dataset"] == "nk":
-    data_dev = data_train[:len(data_train) // 10]
-    data_test = data_train[-(len(data_train) // 10):]
-    data_train = data_train[(len(data_train) // 10) : -(len(data_train) // 10)]
-  else:
-    data_dev = processor.read_input_files(path_dev, name="dev")
-    data_test = processor.read_input_files(path_test, name="test")
+  data_train, data_dev, data_test = processor.read_input_files(path_data, name="train")
 
   if config["adversarial"]:
     df = datasets.load_dataset("discovery","discovery", trust_remote_code=True)
@@ -106,18 +93,7 @@ def run():
   dev_dataloader = DataLoader(dev_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
   test_dataloader = DataLoader(test_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
 
-  no_decay = ["bias", "LayerNorm.weight"]
-  optimizer_grouped_parameters = [
-    {
-      "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-      "weight_decay": 0.01,
-    },
-    {
-      "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-      "weight_decay": 0.0
-    },
-  ]
-  optimizer = AdamW(optimizer_grouped_parameters, lr=config["lr"], weight_decay=config["weight_decay"])
+  optimizer = AdamW(model.parameters(), lr=config["lr"], weight_decay=1e-2)
 
   loss_fn = nn.CrossEntropyLoss(weight=torch.tensor(config["class_weight"]).to(device))
 
@@ -163,17 +139,7 @@ def run():
         model = AdversarialNet(config)
         model = model.to(device)
 
-        optimizer_grouped_parameters = [
-          {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-            "weight_decay": 0.01,
-          },
-          {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-            "weight_decay": 0.0
-          },
-        ]
-        optimizer = AdamW(optimizer_grouped_parameters, lr=config["lr"], weight_decay=config["weight_decay"])
+        optimizer = AdamW(model.parameters(), lr=config["lr"], weight_decay=1e-2)
 
         best_dev_f1 = -1
   else:

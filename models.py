@@ -63,7 +63,7 @@ class AdversarialNet(torch.nn.Module):
       module.bias.data.zero_()
 
   @torch.autocast(device_type="cuda")
-  def forward(self, ids_sent1, segs_sent1, att_mask_sent1, position_sep, visualize=False):
+  def forward(self, ids_sent1, segs_sent1, att_mask_sent1, visualize=False):
     out_sent1 = self.plm(ids_sent1, token_type_ids=segs_sent1, attention_mask=att_mask_sent1, output_hidden_states=True)
 
     last_sent1, first_sent1 = out_sent1.hidden_states[-1], out_sent1.hidden_states[1]
@@ -150,7 +150,7 @@ class BaselineModel(torch.nn.Module):
       module.bias.data.zero_()
 
   @torch.autocast(device_type="cuda")
-  def forward(self, ids_sent1, segs_sent1, att_mask_sent1, position_sep, visualize=False):
+  def forward(self, ids_sent1, segs_sent1, att_mask_sent1, visualize=False):
     out_sent1 = self.plm(ids_sent1, token_type_ids=segs_sent1, attention_mask=att_mask_sent1, output_hidden_states=True)
 
     last_sent1, first_sent1 = out_sent1.hidden_states[-1], out_sent1.hidden_states[1]

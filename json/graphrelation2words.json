@@ -2,5 +2,7 @@
     "CausedBy": "caused by",
     "Hinders": "hinders",
     "isBefore": "is before",
-    "isAfter": "is after"
+    "isAfter": "is after",
+    "Causes": "causes",
+    "HinderedBy": "hindered by"
 }

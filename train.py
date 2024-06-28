@@ -26,10 +26,10 @@ class Trainer:
         for batch in tqdm(train_loader, desc='Iteration'):
             batch = tuple(t.to(self.device) if not isinstance(t, list) else t for t in batch)
 
-            ids_sent1, segs_sent1, att_mask_sent1, position_sep, labels = batch
+            ids_sent1, segs_sent1, att_mask_sent1, labels = batch
 
             if self.config["adversarial"]:
-                pred, pred_adv, task_pred = model(ids_sent1, segs_sent1, att_mask_sent1, position_sep)
+                pred, pred_adv, task_pred = model(ids_sent1, segs_sent1, att_mask_sent1)
                 try:
                     half_batch_size = len(labels) // 2
                     targets, targets_adv, targets_task = labels[:half_batch_size], labels[half_batch_size:], [[0, 1]] * half_batch_size + [[1, 0]] * half_batch_size
@@ -44,7 +44,7 @@ class Trainer:
                 loss3 = loss_fn2(task_pred, targets_task.float())
                 loss = loss1 + discovery_weight*loss2 + adv_weight*loss3
             else:
-                out = model(ids_sent1, segs_sent1, att_mask_sent1, position_sep)
+                out = model(ids_sent1, segs_sent1, att_mask_sent1)
                 if isinstance(labels, list):
                     labels = torch.tensor(np.array(labels)).to(self.device)
                 loss = loss_fn(out, labels.float())
@@ -72,10 +72,10 @@ class Trainer:
         val_labels = []
         for batch in val_loader:
             batch = tuple(t.to(self.device) for t in batch)
-            ids_sent1, segs_sent1, att_mask_sent1, position_sep, labels = batch
+            ids_sent1, segs_sent1, att_mask_sent1, labels = batch
 
             with torch.no_grad():
-                out = model(ids_sent1, segs_sent1, att_mask_sent1, position_sep)
+                out = model(ids_sent1, segs_sent1, att_mask_sent1)
                 preds = torch.max(out.data, 1)[1].cpu().numpy().tolist()
                 loss = loss_fn(out, labels.float())
                 val_loss += loss.item()
@@ -109,14 +109,14 @@ class Trainer:
             if i == num_batches_to_plot:
                 break
             batch = tuple(t.to(self.device) for t in batch)
-            ids_sent1, segs_sent1, att_mask_sent1, position_sep, labels = batch
+            ids_sent1, segs_sent1, att_mask_sent1, labels = batch
             if tot_labels is None:
                 tot_labels = labels
             else:
                 tot_labels = torch.cat([tot_labels, labels], dim=0)
 
             with torch.no_grad():
-                out = model(ids_sent1, segs_sent1, att_mask_sent1, position_sep, visualize=True)
+                out = model(ids_sent1, segs_sent1, att_mask_sent1, visualize=True)
                 if embeddings is None:
                     embeddings = out
                 else:
