@@ -230,7 +230,7 @@ class DataProcessor:
     node_feature_matrix = self._get_node_features(node_ids)
     edge_feature_matrix = self._get_edge_features(edge_type)
 
-    data = Data(x=node_feature_matrix, edge_index=torch.tensor(edge_index, dtype=torch.float32), edge_attr=edge_feature_matrix)
+    data = Data(x=node_feature_matrix, edge_index=torch.tensor(edge_index, dtype=torch.int64), edge_attr=edge_feature_matrix)
 
     return data
 
