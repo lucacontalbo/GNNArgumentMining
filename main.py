@@ -16,7 +16,7 @@ from data_processor import StudentEssayProcessor, StudentEssayWithDiscourseInjec
                             DiscourseMarkerProcessor, dataset,\
                             collate_fn, collate_fn_adv
 from batch_sampler import BalancedSampler
-from models import AdversarialNet, BaselineModel
+from models import AdversarialNet, BaselineModel, BaselineModelWithGNN
 from train import Trainer
 
 DATA_PATH = Path("data/")
@@ -74,7 +74,7 @@ def run():
 
   if not config["adversarial"]:
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
-    model = BaselineModel(config)
+    model = BaselineModelWithGNN(config)
   else:
     sampler_train = BalancedSampler(data_train, train_adv, config["batch_size"])
     train_dataloader = DataLoader(train_set, batch_sampler=sampler_train, collate_fn=collate_fn_adv)

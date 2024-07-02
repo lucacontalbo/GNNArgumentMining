@@ -2,6 +2,8 @@ import torch
 
 from transformers import AutoModel
 from torch import nn
+from torch_geometric.nn import GCNConv
+
 
 class GRLayer(torch.autograd.Function):
     @staticmethod
@@ -178,5 +180,119 @@ class BaselineModel(torch.nn.Module):
       return H_sent
 
     predictions = self.linear_layer(H_sent)
+
+    return predictions
+
+
+
+class BaselineModelWithGNN(torch.nn.Module):
+  def __init__(self, config):
+    super(BaselineModelWithGNN, self).__init__()
+
+    self.num_classes = config["num_classes"]
+    self.embed_size = config["embed_size"]
+    self.first_last_avg = config["first_last_avg"]
+
+    self.plm = AutoModel.from_pretrained(config["model_name"])
+    config = self.plm.config
+    config.type_vocab_size = 4
+    self.plm.embeddings.token_type_embeddings = nn.Embedding(
+      config.type_vocab_size, config.hidden_size
+    )
+    self.plm._init_weights(self.plm.embeddings.token_type_embeddings)
+
+    for param in self.plm.parameters():
+      param.requires_grad = True
+
+    self.linear_layer = torch.nn.Linear(in_features=self.embed_size, out_features=self.num_classes)
+    self.multi_head_att = torch.nn.MultiheadAttention(self.embed_size, 8, batch_first=True)
+    self.Q = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+    self.K = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+    self.V = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+
+    self.convs = torch.nn.ModuleList([GCNConv(self.embed_size,self.embed_size) for i in range(3)])
+
+    self.pre_mlp1 = torch.nn.Linear(in_features=300, out_features=self.embed_size)
+    self.pre_mlp2 = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+    self.post_mlp1 = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+    self.post_mlp2 = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+
+
+    self._init_weights(self.linear_layer)
+    self._init_weights(self.Q)
+    self._init_weights(self.K)
+    self._init_weights(self.V)
+    self._init_weights(self.multi_head_att)
+    self._init_weights(self.convs)
+    self._init_weights(self.pre_mlp1)
+    self._init_weights(self.pre_mlp2)
+    self._init_weights(self.post_mlp1)
+    self._init_weights(self.post_mlp2)
+
+
+  def _init_weights(self, module):
+    """Initialize the weights"""
+    if isinstance(module, (nn.Linear, nn.Embedding)):
+      module.weight.data.normal_(mean=0.0, std=self.plm.config.initializer_range)
+    elif isinstance(module, nn.LayerNorm):
+      module.bias.data.zero_()
+      module.weight.data.fill_(1.0)
+    if isinstance(module, nn.Linear) and module.bias is not None:
+      module.bias.data.zero_()
+    if isinstance(module, nn.ModuleList):
+      for d in module:
+        self._init_weights(d)
+    
+
+  @torch.autocast(device_type="cuda")
+  def forward(self, ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, visualize=False):
+    out_sent1 = self.plm(ids_sent1, token_type_ids=segs_sent1, attention_mask=att_mask_sent1, output_hidden_states=True)
+
+    last_sent1, first_sent1 = out_sent1.hidden_states[-1], out_sent1.hidden_states[1]
+
+    if self.first_last_avg:
+      embed_sent1 = torch.div((last_sent1 + first_sent1), 2)
+    else:
+      embed_sent1 = last_sent1
+
+    """tar_mask_sent1 = (segs_sent1 == 0).long()
+    tar_mask_sent2 = (segs_sent1 == 1).long()
+
+    H_sent1 = torch.mul(tar_mask_sent1.unsqueeze(2), embed_sent1)
+    H_sent2 = torch.mul(tar_mask_sent2.unsqueeze(2), embed_sent1)
+
+    K_sent1 = self.K(H_sent1)
+    V_sent1 = self.V(H_sent1)
+    Q_sent2 = self.Q(H_sent2)
+
+    att_output = self.multi_head_att(Q_sent2, K_sent1, V_sent1)"""
+
+    H_sent = torch.mean(embed_sent1, dim=1) #torch.mean(att_output[0], dim=1)
+
+    if len(graph.x) == 0:
+      graph_embedding = [0] * len(ids_sent1)
+      graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
+    else:
+      x, edge_index = graph.x, graph.edge_index
+
+      x = self.pre_mlp1(x)
+      x = self.pre_mlp2(x)
+
+      for i in range(len(self.convs)):
+        out = self.convs[i](x, edge_index)
+      
+      out = self.post_mlp1(out)
+      out = self.post_mlp2(out)
+
+    K_sent1 = self.K(H_sent)
+    V_sent1 = self.V(H_sent)
+    Q_sent2 = self.Q(out)
+
+    att_output = self.multi_head_att(Q_sent2, K_sent1, V_sent1)
+
+    if visualize:
+      return H_sent
+
+    predictions = self.linear_layer(att_output) #self.linear_layer(H_sent)
 
     return predictions

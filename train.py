@@ -24,9 +24,9 @@ class Trainer:
         loss_fn2 = nn.CrossEntropyLoss()
 
         for batch in tqdm(train_loader, desc='Iteration'):
-            batch = tuple(t.to(self.device) if not isinstance(t, list) else t for t in batch)
+            batch = tuple(t.to(self.device) if isinstance(t, torch.Tensor) else t for t in batch)
 
-            ids_sent1, segs_sent1, att_mask_sent1, labels = batch
+            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, labels = batch
 
             if self.config["adversarial"]:
                 pred, pred_adv, task_pred = model(ids_sent1, segs_sent1, att_mask_sent1)
@@ -44,7 +44,7 @@ class Trainer:
                 loss3 = loss_fn2(task_pred, targets_task.float())
                 loss = loss1 + discovery_weight*loss2 + adv_weight*loss3
             else:
-                out = model(ids_sent1, segs_sent1, att_mask_sent1)
+                out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
                 if isinstance(labels, list):
                     labels = torch.tensor(np.array(labels)).to(self.device)
                 loss = loss_fn(out, labels.float())

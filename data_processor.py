@@ -8,10 +8,12 @@ import ast
 from pathlib import Path
 
 from torch.utils.data import Dataset
-from torch_geometric.data import Data
+from torch_geometric.data import Data, Batch
 from transformers import AutoTokenizer, pipeline
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
+
+from utils import get_device
 
 JSON_PATH = Path("json/")
 PRETRAINED_EMB_PATHS = Path("pretrained_embs/")
@@ -34,6 +36,8 @@ def collate_fn(examples):
     ids_sent1 = torch.tensor(list(ids_sent1), dtype=torch.long)
     segs_sent1 = torch.tensor(list(segs_sent1), dtype=torch.long)
     att_mask_sent1 = torch.tensor(list(att_mask_sent1), dtype=torch.long)
+    #graph = [g.to(get_device()) for g in graph]
+    graph = Batch.from_data_list(list(graph)).to(get_device())
     graph_masking = torch.tensor(list(graph_masking), dtype=torch.long)
     labels = torch.tensor(list(labels), dtype=torch.long)
 
@@ -124,6 +128,7 @@ class DataProcessor:
            counter += 1
       
       for i in range(1,len(walk),2):
+        walk[i] = walk[i].strip()
         edge_index[0].append(node_ids[walk[i-1]])
         edge_index[1].append(node_ids[walk[i+1]])
         edge_type.append(walk[i])
@@ -221,12 +226,11 @@ class DataProcessor:
 
   def graph_to_pyg(self, graph):
     node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph)
-    print(f"Nodes: {node_ids}")
-    print(f"Edge: {edge_type}")
+
     node_feature_matrix = self._get_node_features(node_ids)
     edge_feature_matrix = self._get_edge_features(edge_type)
 
-    data = Data(x=node_feature_matrix, edge_index=edge_index, edge_attr=edge_feature_matrix)
+    data = Data(x=node_feature_matrix, edge_index=torch.tensor(edge_index, dtype=torch.float32), edge_attr=edge_feature_matrix)
 
     return data
 

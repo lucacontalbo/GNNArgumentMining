@@ -1,11 +1,10 @@
 import torch
 import random
-import configparser
+import functools
 import argparse
 import numpy as np
 
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from ast import literal_eval
 
 
 class_weights = {
@@ -63,7 +62,7 @@ def get_config():
     return args
 
 
-
+@functools.cache
 def get_device():
     device = torch.device("cpu")
     if torch.cuda.is_available():
