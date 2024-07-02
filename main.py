@@ -93,7 +93,7 @@ def run():
   dev_dataloader = DataLoader(dev_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
   test_dataloader = DataLoader(test_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
 
-  optimizer = AdamW(model.parameters(), lr=config["lr"], weight_decay=1e-2)
+  optimizer = AdamW(model.parameters(), lr=config["lr"], weight_decay=1e-3)
 
   loss_fn = nn.CrossEntropyLoss(weight=torch.tensor(config["class_weight"]).to(device))
 

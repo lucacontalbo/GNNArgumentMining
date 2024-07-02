@@ -38,6 +38,7 @@ def collate_fn(examples):
     att_mask_sent1 = torch.tensor(list(att_mask_sent1), dtype=torch.long)
     #graph = [g.to(get_device()) for g in graph]
     graph = Batch.from_data_list(list(graph)).to(get_device())
+
     graph_masking = torch.tensor(list(graph_masking), dtype=torch.long)
     labels = torch.tensor(list(labels), dtype=torch.long)
 
@@ -61,6 +62,7 @@ class DataProcessor:
     self.config = config
     self.tokenizer = AutoTokenizer.from_pretrained(self.config["model_name"])
     self.max_sent_len = config["max_sent_len"]
+    self.max_num_nodes = 1024
     self.graphrelation2words = self.load_json(JSON_PATH / "graphrelation2words.json")
 
   def __str__(self,):
@@ -71,7 +73,7 @@ class DataProcessor:
     examples = []
 
     for row in tqdm(dataset, desc="tokenizing..."):
-      id, sentence1, sentence2, graph, label = row
+      id, sentence1, sentence2, graph, arg0_pos, arg1_pos, label = row
 
       sentence1_length = len(self.tokenizer.encode(sentence1))
       sentence2_length = len(self.tokenizer.encode(sentence2))
@@ -79,10 +81,10 @@ class DataProcessor:
       ids_sent1 = self.tokenizer.encode(sentence1, sentence2)
       segs_sent1 = [0] * sentence1_length + [1] * (sentence2_length)
 
-      if len(graph.x) == 0 or len(graph.edge_index) == 0:
-        graph_masking = [0] * self.max_sent_len
-      else:
-        graph_masking = [1] * self.max_sent_len
+      graph_masking = [0] * self.max_num_nodes
+      if arg0_pos != -1 and arg1_pos != -1:
+        graph_masking[arg0_pos] = 1
+        graph_masking[arg1_pos] = 1
 
       assert len(ids_sent1) == len(segs_sent1)
 
@@ -232,7 +234,12 @@ class DataProcessor:
 
     data = Data(x=node_feature_matrix, edge_index=torch.tensor(edge_index, dtype=torch.int64), edge_attr=edge_feature_matrix)
 
-    return data
+    if len(node_ids.keys()) > 0:
+      arg0_pos, arg1_pos = node_ids["[Arg1]"], node_ids["[Arg2]"]
+    else:
+      arg0_pos, arg1_pos = -1, -1
+
+    return data, arg0_pos, arg1_pos
 
 
 class DiscourseMarkerProcessor(DataProcessor):
@@ -297,7 +304,7 @@ class StudentEssayProcessor(DataProcessor):
         label = row.iloc[4]
         split = row.iloc[5]
         graph = ast.literal_eval(row.iloc[8])
-        graph = self.graph_to_pyg(graph)
+        graph, arg0_pos, arg1_pos = self.graph_to_pyg(graph)
 
         if not label:
           l = [1,0]
@@ -305,11 +312,11 @@ class StudentEssayProcessor(DataProcessor):
           l = [0,1]
               
         if split == "train":
-          result_train.append([sample_id, sent, target, graph, l])
+          result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
         elif split == "dev":
-          result_dev.append([sample_id, sent, target, graph, l])
+          result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
         elif split == "test":
-          result_test.append([sample_id, sent, target, graph, l])
+          result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
         else:
           raise ValueError(f"unknown dataset split: {split}")
 

@@ -47,6 +47,7 @@ class Trainer:
                 out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
                 if isinstance(labels, list):
                     labels = torch.tensor(np.array(labels)).to(self.device)
+                #print(f"Pred: {out} ----------") # Labels: {labels.float()}")
                 loss = loss_fn(out, labels.float())
 
             tr_loss += loss.item()
@@ -71,11 +72,12 @@ class Trainer:
         val_preds = []
         val_labels = []
         for batch in val_loader:
-            batch = tuple(t.to(self.device) for t in batch)
-            ids_sent1, segs_sent1, att_mask_sent1, labels = batch
+            batch = tuple(t.to(self.device) if isinstance(t, torch.Tensor) else t for t in batch)
+
+            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, labels = batch
 
             with torch.no_grad():
-                out = model(ids_sent1, segs_sent1, att_mask_sent1)
+                out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
                 preds = torch.max(out.data, 1)[1].cpu().numpy().tolist()
                 loss = loss_fn(out, labels.float())
                 val_loss += loss.item()
