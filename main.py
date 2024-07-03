@@ -93,8 +93,19 @@ def run():
   dev_dataloader = DataLoader(dev_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
   test_dataloader = DataLoader(test_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
 
-  optimizer = AdamW(model.parameters(), lr=config["lr"], weight_decay=1e-3)
-
+  no_decay = ["bias", "LayerNorm.weight"]
+  optimizer_grouped_parameters = [
+    {
+      "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+      "weight_decay": 0.01,
+    },
+    {
+      "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+      "weight_decay": 0.0
+    },
+  ]
+  optimizer = AdamW(optimizer_grouped_parameters, lr=config["lr"], weight_decay=config["weight_decay"])
+  
   loss_fn = nn.CrossEntropyLoss(weight=torch.tensor(config["class_weight"]).to(device))
 
   best_dev_f1 = -1
