@@ -277,7 +277,7 @@ class BaselineModelWithGNN(torch.nn.Module):
 
     H_sent = torch.mean(embed_sent1, dim=1)
 
-    if len(graph.x) == 0:
+    """if len(graph.x) == 0:
       graph_embedding = [0] * len(ids_sent1)
       graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
     else:
@@ -299,7 +299,8 @@ class BaselineModelWithGNN(torch.nn.Module):
     V_sent1 = self.V(H_sent)
     Q_sent2 = self.Q(out)
 
-    att_output = self.multi_head_att(Q_sent2, K_sent1, V_sent1)[0]
+    att_output = self.multi_head_att(Q_sent2, K_sent1, V_sent1)[0]"""
+    att_output = H_sent
 
     if visualize:
       return H_sent
