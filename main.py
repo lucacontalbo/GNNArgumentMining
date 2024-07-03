@@ -52,6 +52,10 @@ def run():
 
   data_train, data_dev, data_test = processor.read_input_files(path_data, name="train")
 
+  print(len(data_train))
+  print(len(data_dev))
+  print(len(data_test))
+
   if config["adversarial"]:
     df = datasets.load_dataset("discovery","discovery", trust_remote_code=True)
     adv_processor = DiscourseMarkerProcessor(config)

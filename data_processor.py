@@ -293,7 +293,6 @@ class StudentEssayProcessor(DataProcessor):
         sample_id = row.iloc[0]
         sent = row.iloc[1].strip()
         target = row.iloc[2].strip()
-
         if pipe is not None:
           ds_marker = pipe(f"{sent}</s></s>{target}")[0]["label"]
           ds_marker = ds_marker.replace("_", " ")
@@ -407,7 +406,8 @@ class MARGProcessor(DataProcessor):
 
               label = row[3].strip()
               split = row[-1]
-              graph = row[5]
+              graph = ast.literal_eval(row[5])
+              graph, arg0_pos, arg1_pos = self.graph_to_pyg(graph)
 
               l=[0,0,0]
               if label == 'support':
@@ -418,11 +418,11 @@ class MARGProcessor(DataProcessor):
                 l = [0,0,1]
 
               if split == "train":
-                result_train.append([sample_id, sent, target, graph, l])
+                result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
               elif split == "dev":
-                result_dev.append([sample_id, sent, target, graph, l])
+                result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
               elif split == "test":
-                result_test.append([sample_id, sent, target, graph, l])
+                result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
               else:
                 raise ValueError(f"unknown dataset split: {split}")
 
