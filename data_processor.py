@@ -390,12 +390,9 @@ class MARGProcessor(DataProcessor):
 
       df = pd.read_csv(file_path)
       for i,row in df.iterrows():
-              if row[-1] != name:
-                continue
-
-              sample_id = row[0]
-              sent = row[1].strip()
-              target = row[2].strip()
+              sample_id = row.iloc[0]
+              sent = row.iloc[1].strip()
+              target = row.iloc[2].strip()
 
               if pipe is not None:
                 ds_marker = self.pipe(f"{sent}</s></s>{target}")[0]["label"]
@@ -404,9 +401,9 @@ class MARGProcessor(DataProcessor):
                 target = target[0].lower() + target[1:]
                 target = ds_marker + " " + target
 
-              label = row[3].strip()
-              split = row[-1]
-              graph = ast.literal_eval(row[5])
+              label = row.iloc[3].strip()
+              split = row.iloc[-1]
+              graph = ast.literal_eval(row.iloc[5])
               graph, arg0_pos, arg1_pos = self.graph_to_pyg(graph)
 
               l=[0,0,0]
