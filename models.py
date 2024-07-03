@@ -211,7 +211,7 @@ class BaselineModelWithGNN(torch.nn.Module):
     self.K = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
     self.V = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
 
-    self.convs = torch.nn.ModuleList([GCNConv(self.embed_size_gnn,self.embed_size_gnn) for i in range(3)])
+    self.convs = torch.nn.ModuleList([GCNConv(self.embed_size_gnn,self.embed_size_gnn) for i in range(1)])
 
     self.pre_mlp1 = torch.nn.Linear(in_features=300, out_features=self.embed_size_gnn)
     self.pre_mlp2 = torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn)
