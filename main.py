@@ -74,7 +74,7 @@ def run():
 
   if not config["adversarial"]:
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
-    model = BaselineModelWithGNN(config)
+    model = BaselineModel(config) #BaselineModelWithGNN(config)
   else:
     sampler_train = BalancedSampler(data_train, train_adv, config["batch_size"])
     train_dataloader = DataLoader(train_set, batch_sampler=sampler_train, collate_fn=collate_fn_adv)
@@ -105,7 +105,7 @@ def run():
     },
   ]
   optimizer = AdamW(optimizer_grouped_parameters, lr=config["lr"], weight_decay=config["weight_decay"])
-  
+
   loss_fn = nn.CrossEntropyLoss(weight=torch.tensor(config["class_weight"]).to(device))
 
   best_dev_f1 = -1
