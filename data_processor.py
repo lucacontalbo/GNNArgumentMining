@@ -122,7 +122,8 @@ class DataProcessor:
     edge_index = [[],[]]
     edge_type = []
 
-    for walk in graph:
+    for j, walk in enumerate(graph):
+      if j == 50: break
       for i in range(0,len(walk),2):
         walk[i] = walk[i].strip()
         if walk[i] not in node_ids.keys():
@@ -389,7 +390,7 @@ class MARGProcessor(DataProcessor):
       result_test = []
 
       df = pd.read_csv(file_path)
-      for i,row in df.iterrows():
+      for i,row in tqdm(df.iterrows()):
               sample_id = row.iloc[0]
               sent = row.iloc[1].strip()
               target = row.iloc[2].strip()
