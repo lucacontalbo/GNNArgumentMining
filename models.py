@@ -298,11 +298,6 @@ class BaselineModelWithGNN(torch.nn.Module):
     out = out.view(out.shape[0], -1)
     out = self.relu(self.post_concat(out))
 
-    """K_sent1 = self.K(out)
-    V_sent1 = self.V(out)
-    Q_sent2 = self.Q(H_sent)
-
-    att_output = self.multi_head_att(Q_sent2, K_sent1, V_sent1)[0]"""
     att_output = H_sent + out
 
     if visualize:
