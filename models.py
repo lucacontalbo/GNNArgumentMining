@@ -303,7 +303,7 @@ class BaselineModelWithGNN(torch.nn.Module):
     Q_sent2 = self.Q(H_sent)
 
     att_output = self.multi_head_att(Q_sent2, K_sent1, V_sent1)[0]
-    #att_output = H_sent
+    att_output = H_sent
 
     if visualize:
       return H_sent
