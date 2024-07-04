@@ -298,9 +298,9 @@ class BaselineModelWithGNN(torch.nn.Module):
     out = out.view(out.shape[0], -1)
     out = self.relu(self.post_concat(out))
 
-    K_sent1 = self.K(H_sent)
-    V_sent1 = self.V(H_sent)
-    Q_sent2 = self.Q(out)
+    K_sent1 = self.K(out)
+    V_sent1 = self.V(out)
+    Q_sent2 = self.Q(H_sent)
 
     att_output = self.multi_head_att(Q_sent2, K_sent1, V_sent1)[0]
     #att_output = H_sent
@@ -308,6 +308,6 @@ class BaselineModelWithGNN(torch.nn.Module):
     if visualize:
       return H_sent
 
-    predictions = self.linear_layer(att_output) #self.linear_layer(H_sent)
+    predictions = self.linear_layer(att_output)
 
     return predictions
