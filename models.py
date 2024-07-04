@@ -219,6 +219,8 @@ class BaselineModelWithGNN(torch.nn.Module):
     self.post_mlp2 = torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn)
     self.post_concat = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
     self.relu = torch.nn.ReLU()
+    self.bns_gnn = torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for i in range(7)])
+    self.bns = torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size) for i in range(2)])
 
     self._init_weights(self.linear_layer)
     self._init_weights(self.Q)
@@ -285,20 +287,20 @@ class BaselineModelWithGNN(torch.nn.Module):
     else:
       x, edge_index = graph.x, graph.edge_index
 
-      x = self.relu(self.pre_mlp1(x))
-      x = self.relu(self.pre_mlp2(x))
+      x = self.bns_gnn[0](self.relu(self.pre_mlp1(x)))
+      x = self.bns_gnn[1](self.relu(self.pre_mlp2(x)))
 
       for i in range(len(self.convs)):
-        out = self.convs[i](x, edge_index)
+        out = self.bns_gnn[i+2](self.relu(self.convs[i](x, edge_index)))
       
-      out = self.relu(self.post_mlp1(out))
-      out = self.relu(self.post_mlp2(out))
+      out = self.bns_gnn[len(self.convs)+2](self.relu(self.post_mlp1(out)))
+      out = self.bns_gnn[len(self.convs)+3](self.relu(self.post_mlp2(out)))
 
     out = self.reshape_graph_embeddings(out, graph_masking, graph.batch, len(ids_sent1))
     out = out.view(out.shape[0], -1)
-    out = self.relu(self.post_concat(out))
+    out = self.bns[0](self.relu(self.post_concat(out)))
 
-    att_output = H_sent + out
+    att_output = self.bns[1](H_sent) + out
 
     if visualize:
       return H_sent
