@@ -217,6 +217,7 @@ class BaselineModelWithGNN(torch.nn.Module):
     self.pre_mlp2 = torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn)
     self.post_mlp1 = torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn)
     self.post_mlp2 = torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn)
+    self.post_concat = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
     self.relu = torch.nn.ReLU()
 
     self._init_weights(self.linear_layer)
@@ -229,6 +230,7 @@ class BaselineModelWithGNN(torch.nn.Module):
     self._init_weights(self.pre_mlp2)
     self._init_weights(self.post_mlp1)
     self._init_weights(self.post_mlp2)
+    self._init_weights(self.post_concat)
 
 
   def _init_weights(self, module):
@@ -294,6 +296,7 @@ class BaselineModelWithGNN(torch.nn.Module):
 
     out = self.reshape_graph_embeddings(out, graph_masking, graph.batch, len(ids_sent1))
     out = out.view(out.shape[0], -1)
+    out = self.relu(self.post_concat(out))
 
     K_sent1 = self.K(H_sent)
     V_sent1 = self.V(H_sent)
