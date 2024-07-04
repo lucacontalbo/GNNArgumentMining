@@ -346,7 +346,7 @@ class DebateProcessor(DataProcessor):
         label = row.iloc[4]
         split = row.iloc[5]
         graph = ast.literal_eval(row.iloc[8])
-        graph = self.graph_to_pyg(graph)
+        graph, arg0_pos, arg1_pos = self.graph_to_pyg(graph)
 
         if pipe is not None:
           ds_marker = self.pipe(f"{sent}</s></s>{target}")[0]["label"]
@@ -362,11 +362,11 @@ class DebateProcessor(DataProcessor):
           l = [0,1]
 
         if split == "train":
-          result_train.append([sample_id, sent, target, graph, l])
+          result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
         elif split == "dev":
-          result_dev.append([sample_id, sent, target, graph, l])
+          result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
         elif split == "test":
-          result_test.append([sample_id, sent, target, graph, l])
+          result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
         else:
           raise ValueError(f"unknown dataset split: {split}")
 
