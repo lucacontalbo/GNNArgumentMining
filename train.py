@@ -26,7 +26,7 @@ class Trainer:
         for batch in tqdm(train_loader, desc='Iteration'):
             batch = tuple(t.to(self.device) if isinstance(t, torch.Tensor) else t for t in batch)
 
-            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, labels = batch
+            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, labels = batch
 
             if self.config["adversarial"]:
                 pred, pred_adv, task_pred = model(ids_sent1, segs_sent1, att_mask_sent1)
@@ -44,10 +44,14 @@ class Trainer:
                 loss3 = loss_fn2(task_pred, targets_task.float())
                 loss = loss1 + discovery_weight*loss2 + adv_weight*loss3
             else:
-                out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
+                if self.config["use_hgraph"]:
+                    out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict)
+                elif self.config["use_graph"]:
+                    out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
+                else:
+                    out = model(ids_sent1, segs_sent1, att_mask_sent1)
                 if isinstance(labels, list):
                     labels = torch.tensor(np.array(labels)).to(self.device)
-                #print(f"Pred: {out} ----------") # Labels: {labels.float()}")
                 loss = loss_fn(out, labels.float())
 
             tr_loss += loss.item()
@@ -74,10 +78,16 @@ class Trainer:
         for batch in val_loader:
             batch = tuple(t.to(self.device) if isinstance(t, torch.Tensor) else t for t in batch)
 
-            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, labels = batch
+            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, labels = batch
 
             with torch.no_grad():
-                out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
+                if self.config["use_hgraph"]:
+                    out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict)
+                elif self.config["use_graph"]:
+                    out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
+                else:
+                    out = model(ids_sent1, segs_sent1, att_mask_sent1)
+
                 preds = torch.max(out.data, 1)[1].cpu().numpy().tolist()
                 loss = loss_fn(out, labels.float())
                 val_loss += loss.item()

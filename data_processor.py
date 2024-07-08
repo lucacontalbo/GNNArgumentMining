@@ -31,18 +31,17 @@ class dataset(Dataset):
 
 
 def collate_fn(examples):
-    ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, labels = zip(*examples)
+    ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, labels = zip(*examples)
     
     ids_sent1 = torch.tensor(list(ids_sent1), dtype=torch.long)
     segs_sent1 = torch.tensor(list(segs_sent1), dtype=torch.long)
     att_mask_sent1 = torch.tensor(list(att_mask_sent1), dtype=torch.long)
     #graph = [g.to(get_device()) for g in graph]
     graph = Batch.from_data_list(list(graph)).to(get_device())
-
     graph_masking = torch.tensor(list(graph_masking), dtype=torch.long)
     labels = torch.tensor(list(labels), dtype=torch.long)
 
-    return ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, labels
+    return ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, labels
 
 def collate_fn_adv(examples):
     ids_sent1, segs_sent1, att_mask_sent1, position_sep, labels = map(list, zip(*examples))
@@ -58,8 +57,9 @@ def collate_fn_adv(examples):
 
 class DataProcessor:
 
-  def __init__(self,config):
+  def __init__(self,config, device):
     self.config = config
+    self.device = device
     self.tokenizer = AutoTokenizer.from_pretrained(self.config["model_name"])
     self.max_sent_len = config["max_sent_len"]
     self.max_num_nodes = 1024
@@ -73,7 +73,7 @@ class DataProcessor:
     examples = []
 
     for row in tqdm(dataset, desc="tokenizing..."):
-      id, sentence1, sentence2, graph, arg0_pos, arg1_pos, label = row
+      id, sentence1, sentence2, graph, arg0_pos, arg1_pos, node_dict, edge_dict, label = row
 
       sentence1_length = len(self.tokenizer.encode(sentence1))
       sentence2_length = len(self.tokenizer.encode(sentence2))
@@ -100,7 +100,7 @@ class DataProcessor:
         segs_sent1 = segs_sent1[:self.max_sent_len]
         att_mask_sent1 = [1] * self.max_sent_len
 
-      example = [ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, label]
+      example = [ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, label]
 
       examples.append(example)
 
@@ -227,20 +227,51 @@ class DataProcessor:
 
     return edge_embeddings
 
-  def graph_to_pyg(self, graph):
+  def graph_to_pyg(self, graph, emb_size=300):
     node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph)
 
-    node_feature_matrix = self._get_node_features(node_ids)
-    edge_feature_matrix = self._get_edge_features(edge_type)
+    node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size)
+    edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size)
 
     data = Data(x=node_feature_matrix, edge_index=torch.tensor(edge_index, dtype=torch.int64), edge_attr=edge_feature_matrix)
+    if self.config["use_hgraph"]:
+      node_type_names = ["node" for i in range(len(data.x))]
+      node_types = [0 for i in range(len(data.x))]
+
+      edge_types = []
+      edge_type_dict = {}
+      counter = 0
+      for link in edge_type:
+        if link not in edge_type_dict.keys():
+          edge_type_dict[link] = counter
+          counter += 1
+        edge_types.append(edge_type_dict[link])
+
+      node_dict = {"node": data.x}
+      edge_dict = {}
+      relations = set(edge_type)
+      for i, rel in enumerate(edge_type):
+        if rel in edge_dict.keys():
+          continue
+        edge_dict[rel] = edge_feature_matrix[i,:].repeat(edge_type.count(rel)).reshape(-1, emb_size)
+
+        if len(relations) == len(edge_dict.keys()):
+          break
+      
+      node_types = torch.tensor(node_types).to(self.device)
+      edge_types = torch.tensor(edge_types).to(self.device)
+
+      data.to_heterogeneous(node_type=node_types, edge_type=edge_types, node_type_names=node_type_names, edge_type_names=[("node", el, "node") for el in edge_type])
+    else:
+      node_dict = None
+      edge_dict = None
 
     if len(node_ids.keys()) > 0:
       arg0_pos, arg1_pos = node_ids["[Arg1]"], node_ids["[Arg2]"]
     else:
       arg0_pos, arg1_pos = -1, -1
 
-    return data, arg0_pos, arg1_pos
+    return data, arg0_pos, arg1_pos, node_dict, edge_dict
 
 
 class DiscourseMarkerProcessor(DataProcessor):
@@ -279,8 +310,8 @@ class DiscourseMarkerProcessor(DataProcessor):
 
 class StudentEssayProcessor(DataProcessor):
 
-  def __init__(self, config):
-    super(StudentEssayProcessor,self).__init__(config)
+  def __init__(self, config, device):
+    super(StudentEssayProcessor,self).__init__(config, device)
 
 
   def read_input_files(self, file_path, name="train", pipe=None):
@@ -304,7 +335,7 @@ class StudentEssayProcessor(DataProcessor):
         label = row.iloc[4]
         split = row.iloc[5]
         graph = ast.literal_eval(row.iloc[8])
-        graph, arg0_pos, arg1_pos = self.graph_to_pyg(graph)
+        graph, arg0_pos, arg1_pos, node_dict, edge_dict = self.graph_to_pyg(graph)
 
         if not label:
           l = [1,0]
@@ -312,11 +343,11 @@ class StudentEssayProcessor(DataProcessor):
           l = [0,1]
               
         if split == "train":
-          result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
+          result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, node_dict, edge_dict, l])
         elif split == "dev":
-          result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
+          result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, node_dict, edge_dict, l])
         elif split == "test":
-          result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
+          result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, node_dict, edge_dict, l])
         else:
           raise ValueError(f"unknown dataset split: {split}")
 
@@ -329,8 +360,8 @@ class StudentEssayProcessor(DataProcessor):
 
 class DebateProcessor(DataProcessor):
 
-  def __init__(self, config):
-    super(DebateProcessor,self).__init__(config)
+  def __init__(self, config, device):
+    super(DebateProcessor,self).__init__(config, device)
 
   def read_input_files(self, file_path, name="train", pipe=None):
       result_train = []
@@ -379,8 +410,8 @@ class DebateProcessor(DataProcessor):
 
 class MARGProcessor(DataProcessor):
 
-  def __init__(self, config):
-    super(MARGProcessor, self).__init__(config)
+  def __init__(self, config, device):
+    super(MARGProcessor, self).__init__(config, device)
     self.pipe = pipeline("text-classification", model="sileod/roberta-base-discourse-marker-prediction")
 
   def read_input_files(self, file_path, name="train", pipe=None):
@@ -433,8 +464,8 @@ class MARGProcessor(DataProcessor):
 
 class StudentEssayWithDiscourseInjectionProcessor(StudentEssayProcessor):
 
-  def __init__(self, config):
-    super(StudentEssayWithDiscourseInjectionProcessor, self).__init__(config)
+  def __init__(self, config, device):
+    super(StudentEssayWithDiscourseInjectionProcessor, self).__init__(config, device)
     self.pipe = pipeline("text-classification", model="sileod/roberta-base-discourse-marker-prediction")
 
   def read_input_files(self, file_path, name="train"):
@@ -450,8 +481,8 @@ class StudentEssayWithDiscourseInjectionProcessor(StudentEssayProcessor):
 
 class DebateWithDiscourseInjectionProcessor(DebateProcessor):
 
-  def __init__(self, config):
-    super(DebateWithDiscourseInjectionProcessor,self).__init__(config)
+  def __init__(self, config, device):
+    super(DebateWithDiscourseInjectionProcessor,self).__init__(config, device)
     self.pipe = pipeline("text-classification", model="sileod/roberta-base-discourse-marker-prediction")
 
 
@@ -468,8 +499,8 @@ class DebateWithDiscourseInjectionProcessor(DebateProcessor):
 
 class MARGWithDiscourseInjectionProcessor(DataProcessor):
 
-  def __init__(self, config):
-    super(MARGWithDiscourseInjectionProcessor,self).__init__(config)
+  def __init__(self, config, device):
+    super(MARGWithDiscourseInjectionProcessor,self).__init__(config, device)
     self.pipe = pipeline("text-classification", model="sileod/roberta-base-discourse-marker-prediction")
 
   def read_input_files(self, file_path, name="train"):

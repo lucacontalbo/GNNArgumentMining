@@ -16,7 +16,7 @@ from data_processor import StudentEssayProcessor, StudentEssayWithDiscourseInjec
                             DiscourseMarkerProcessor, dataset,\
                             collate_fn, collate_fn_adv
 from batch_sampler import BalancedSampler
-from models import AdversarialNet, BaselineModel, BaselineModelWithGNN
+from models import AdversarialNet, BaselineModel, BaselineModelWithGNN, BaselineModelWithHGT
 from train import Trainer
 
 DATA_PATH = Path("data/")
@@ -28,33 +28,29 @@ def run():
 
   if config["dataset"] == "student_essay":
     if config["injection"]:
-      processor = StudentEssayWithDiscourseInjectionProcessor(config)
+      processor = StudentEssayWithDiscourseInjectionProcessor(config, device)
     else:
-      processor = StudentEssayProcessor(config)
+      processor = StudentEssayProcessor(config, device)
 
     path_data = DATA_PATH / "student_essay.csv"
   elif config["dataset"] == "debate":
     if config["injection"]:
-      processor = DebateWithDiscourseInjectionProcessor(config)
+      processor = DebateWithDiscourseInjectionProcessor(config, device)
     else:
-      processor = DebateProcessor(config)
+      processor = DebateProcessor(config, device)
 
     path_data = DATA_PATH / "debate.csv"
   elif config["dataset"] == "m-arg":
     if config["injection"]:
-      processor = MARGWithDiscourseInjectionProcessor(config)
+      processor = MARGWithDiscourseInjectionProcessor(config, device)
     else:
-      processor = MARGProcessor(config)
+      processor = MARGProcessor(config, device)
 
     path_data = DATA_PATH / "presidential_final.csv"
   else:
     raise ValueError(f"{config['dataset']} is not a valid database name (choose between 'student_essay', 'debate' and 'm-arg')")
 
   data_train, data_dev, data_test = processor.read_input_files(path_data, name="train")
-
-  print(len(data_train))
-  print(len(data_dev))
-  print(len(data_test))
 
   if config["adversarial"]:
     df = datasets.load_dataset("discovery","discovery", trust_remote_code=True)
@@ -78,7 +74,12 @@ def run():
 
   if not config["adversarial"]:
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
-    model = BaselineModelWithGNN(config)
+    if config["use_hgraph"]:
+      model = BaselineModelWithHGT(config)
+    elif config["use_graph"]:
+      model = BaselineModelWithGNN(config)
+    else:
+      model = BaselineModel(config)
   else:
     sampler_train = BalancedSampler(data_train, train_adv, config["batch_size"])
     train_dataloader = DataLoader(train_set, batch_sampler=sampler_train, collate_fn=collate_fn_adv)
