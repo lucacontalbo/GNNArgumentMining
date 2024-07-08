@@ -258,8 +258,8 @@ class DataProcessor:
         if len(relations) == len(edge_dict.keys()):
           break
       
-      node_types = torch.tensor(node_types).to(self.device)
-      edge_types = torch.tensor(edge_types).to(self.device)
+      node_types = torch.tensor(node_types)
+      edge_types = torch.tensor(edge_types)
 
       data.to_heterogeneous(node_type=node_types, edge_type=edge_types, node_type_names=node_type_names, edge_type_names=[("node", el, "node") for el in edge_type])
     else:
