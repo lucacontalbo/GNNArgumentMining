@@ -305,7 +305,12 @@ class BaselineModelWithHGT(torch.nn.Module):
 
     H_sent = torch.mean(embed_sent1, dim=1)
 
-    if len(graph.x) == 0:
+    try:
+      num_nodes = len(graph.x)
+    except:
+      num_nodes = len(graph.x_dict)
+
+    if num_nodes == 0:
       graph_embedding = [0] * len(ids_sent1)
       graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
     else:
