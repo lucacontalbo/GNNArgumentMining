@@ -314,6 +314,10 @@ class BaselineModelWithHGT(torch.nn.Module):
       graph_embedding = [0] * len(ids_sent1)
       graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
     else:
+      print(graph)
+      print(graph.to_dict())
+      print(graph.x)
+      print(graph.edge_index)
       x_dict, edge_index_dict = graph.x_dict, graph.edge_index_dict
 
       x_dict = {
