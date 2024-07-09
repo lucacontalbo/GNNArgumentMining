@@ -31,7 +31,7 @@ class dataset(Dataset):
 
 
 def collate_fn(examples):
-    ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, labels = zip(*examples)
+    ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, labels = zip(*examples)
     
     ids_sent1 = torch.tensor(list(ids_sent1), dtype=torch.long)
     segs_sent1 = torch.tensor(list(segs_sent1), dtype=torch.long)
@@ -40,7 +40,7 @@ def collate_fn(examples):
     graph_masking = torch.tensor(list(graph_masking), dtype=torch.long)
     labels = torch.tensor(list(labels), dtype=torch.long)
 
-    return ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict[0], edge_dict[0], labels
+    return ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict[0], labels
 
 def collate_fn_adv(examples):
     ids_sent1, segs_sent1, att_mask_sent1, position_sep, labels = map(list, zip(*examples))
@@ -72,7 +72,7 @@ class DataProcessor:
     examples = []
 
     for row in tqdm(dataset, desc="tokenizing..."):
-      id, sentence1, sentence2, graph, arg0_pos, arg1_pos, node_dict, edge_dict, label = row
+      id, sentence1, sentence2, graph, arg0_pos, arg1_pos, edge_dict, label = row
 
       sentence1_length = len(self.tokenizer.encode(sentence1))
       sentence2_length = len(self.tokenizer.encode(sentence2))
@@ -99,7 +99,7 @@ class DataProcessor:
         segs_sent1 = segs_sent1[:self.max_sent_len]
         att_mask_sent1 = [1] * self.max_sent_len
 
-      example = [ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, label]
+      example = [ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, label]
 
       examples.append(example)
 
@@ -243,17 +243,27 @@ class DataProcessor:
       
       for k,v in edges.items():
         data["node", k, "node"].edge_index = v
+      
+      edge_dict = {}
+      relations = set(edge_type)
+      for i, rel in enumerate(edge_type):
+        if rel in edge_dict.keys():
+          continue
+        edge_dict[("node",rel,"node")] = edge_feature_matrix[i,:].repeat(edge_type.count(rel)).reshape(-1, emb_size)
+
+        if len(relations) == len(edge_dict.keys()):
+          break
+  
     else:
       data = Data(x=node_feature_matrix, edge_index=torch.tensor(edge_index, dtype=torch.int64), edge_attr=edge_feature_matrix)
-      node_dict = None
-      edge_dict = None
+      edge_dict = {}
 
     if len(node_ids.keys()) > 0:
       arg0_pos, arg1_pos = node_ids["[Arg1]"], node_ids["[Arg2]"]
     else:
       arg0_pos, arg1_pos = -1, -1
 
-    return data, arg0_pos, arg1_pos, node_dict, edge_dict
+    return data, arg0_pos, arg1_pos, edge_dict
 
 
 class DiscourseMarkerProcessor(DataProcessor):
@@ -317,7 +327,7 @@ class StudentEssayProcessor(DataProcessor):
         label = row.iloc[4]
         split = row.iloc[5]
         graph = ast.literal_eval(row.iloc[8])
-        graph, arg0_pos, arg1_pos, node_dict, edge_dict = self.graph_to_pyg(graph)
+        graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph)
 
         if not label:
           l = [1,0]
@@ -325,11 +335,11 @@ class StudentEssayProcessor(DataProcessor):
           l = [0,1]
               
         if split == "train":
-          result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, node_dict, edge_dict, l])
+          result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, edge_dict, l])
         elif split == "dev":
-          result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, node_dict, edge_dict, l])
+          result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, edge_dict, l])
         elif split == "test":
-          result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, node_dict, edge_dict, l])
+          result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, edge_dict, l])
         else:
           raise ValueError(f"unknown dataset split: {split}")
 

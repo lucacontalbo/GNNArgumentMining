@@ -26,7 +26,7 @@ class Trainer:
         for batch in tqdm(train_loader, desc='Iteration'):
             batch = tuple(t.to(self.device) if isinstance(t, torch.Tensor) else t for t in batch)
 
-            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, labels = batch
+            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, labels = batch
 
             if self.config["adversarial"]:
                 pred, pred_adv, task_pred = model(ids_sent1, segs_sent1, att_mask_sent1)
@@ -45,7 +45,7 @@ class Trainer:
                 loss = loss1 + discovery_weight*loss2 + adv_weight*loss3
             else:
                 if self.config["use_hgraph"]:
-                    out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict)
+                    out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict)
                 elif self.config["use_graph"]:
                     out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
                 else:
@@ -78,11 +78,11 @@ class Trainer:
         for batch in val_loader:
             batch = tuple(t.to(self.device) if isinstance(t, torch.Tensor) else t for t in batch)
 
-            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, labels = batch
+            ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, labels = batch
 
             with torch.no_grad():
                 if self.config["use_hgraph"]:
-                    out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict)
+                    out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict)
                 elif self.config["use_graph"]:
                     out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
                 else:
