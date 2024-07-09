@@ -8,7 +8,7 @@ import ast
 from pathlib import Path
 
 from torch.utils.data import Dataset
-from torch_geometric.data import Data, Batch
+from torch_geometric.data import Data, Batch, HeteroData
 from transformers import AutoTokenizer, pipeline
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
@@ -36,12 +36,11 @@ def collate_fn(examples):
     ids_sent1 = torch.tensor(list(ids_sent1), dtype=torch.long)
     segs_sent1 = torch.tensor(list(segs_sent1), dtype=torch.long)
     att_mask_sent1 = torch.tensor(list(att_mask_sent1), dtype=torch.long)
-    #graph = [g.to(get_device()) for g in graph]
     graph = Batch.from_data_list(list(graph)).to(get_device())
     graph_masking = torch.tensor(list(graph_masking), dtype=torch.long)
     labels = torch.tensor(list(labels), dtype=torch.long)
 
-    return ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict, edge_dict, labels
+    return ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, node_dict[0], edge_dict[0], labels
 
 def collate_fn_adv(examples):
     ids_sent1, segs_sent1, att_mask_sent1, position_sep, labels = map(list, zip(*examples))
@@ -233,36 +232,19 @@ class DataProcessor:
     node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size)
     edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size)
 
-    data = Data(x=node_feature_matrix, edge_index=torch.tensor(edge_index, dtype=torch.int64), edge_attr=edge_feature_matrix)
     if self.config["use_hgraph"]:
-      node_type_names = ["node" for i in range(len(data.x))]
-      node_types = [0 for i in range(len(data.x))]
+      data = HeteroData()
+      data["node"].x = node_feature_matrix
 
-      edge_types = []
-      edge_type_dict = {}
-      counter = 0
-      for link in edge_type:
-        if link not in edge_type_dict.keys():
-          edge_type_dict[link] = counter
-          counter += 1
-        edge_types.append(edge_type_dict[link])
-
-      node_dict = {"node": data.x}
-      edge_dict = {}
-      relations = set(edge_type)
-      for i, rel in enumerate(edge_type):
-        if rel in edge_dict.keys():
-          continue
-        edge_dict[rel] = edge_feature_matrix[i,:].repeat(edge_type.count(rel)).reshape(-1, emb_size)
-
-        if len(relations) == len(edge_dict.keys()):
-          break
+      edges = {link: [[], []] for link in set(edge_type)}
+      for link_name, edge_index_pair in zip(edge_type, torch.tensor(edge_index).transpose(0,1)):
+        edges[link_name][0].append(edge_index_pair[0])
+        edges[link_name][1].append(edge_index_pair[1])
       
-      node_types = torch.tensor(node_types)
-      edge_types = torch.tensor(edge_types)
-
-      data.to_heterogeneous(node_type=node_types, edge_type=edge_types, node_type_names=node_type_names, edge_type_names=[("node", el, "node") for el in edge_type])
+      for k,v in edges.items():
+        data["node", k, "node"].edge_index = v
     else:
+      data = Data(x=node_feature_matrix, edge_index=torch.tensor(edge_index, dtype=torch.int64), edge_attr=edge_feature_matrix)
       node_dict = None
       edge_dict = None
 

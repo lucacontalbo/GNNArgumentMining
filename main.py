@@ -75,7 +75,15 @@ def run():
   if not config["adversarial"]:
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
     if config["use_hgraph"]:
-      model = BaselineModelWithHGT(config)
+      total_metadata = [["node"], [
+        ["node", "caused by", "node"],
+        ["node", "hinders", "node"],
+        ["node", "is before", "node"],
+        ["node", "is after", "node"],
+        ["node", "causes", "node"],
+        ["node", "hindered by", "node"]
+      ]]
+      model = BaselineModelWithHGT(config, total_metadata)
     elif config["use_graph"]:
       model = BaselineModelWithGNN(config)
     else:

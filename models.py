@@ -188,7 +188,7 @@ class BaselineModel(torch.nn.Module):
 
 
 class BaselineModelWithHGT(torch.nn.Module):
-  def __init__(self, config):
+  def __init__(self, config, metadata):
     super(BaselineModelWithHGT, self).__init__()
 
     self.num_classes = config["num_classes"]
@@ -212,15 +212,6 @@ class BaselineModelWithHGT(torch.nn.Module):
     self.Q = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
     self.K = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
     self.V = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
-
-    metadata = (["node"],[
-      ("node", "caused by", "node"),
-      ("node", "hinders", "node"),
-      ("node", "is before", "node"),
-      ("node", "is after", "node"),
-      ("node", "causes", "node"),
-      ("node", "hindered by", "node")
-    ])
 
     self.convs = torch.nn.ModuleList([HGTConv(self.embed_size_gnn,self.embed_size_gnn, metadata=metadata) for _ in range(3)])
     self.bns_gnn_hgt = torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(3)])
@@ -318,7 +309,7 @@ class BaselineModelWithHGT(torch.nn.Module):
       graph_embedding = [0] * len(ids_sent1)
       graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
     else:
-      x, edge_index = graph.x, graph.edge_index
+      x_dict, edge_index_dict = graph.x_dict, graph.edge_index_dict
 
       x_dict = {
         node_type: self.bns_gnn_node[node_type][1](
@@ -332,7 +323,7 @@ class BaselineModelWithHGT(torch.nn.Module):
             )
           )
         )
-        for node_type, x in node_dict.items()
+        for node_type, x in x_dict.items()
       }
       rel_dict = {
         edge_type: self.bns_gnn_edge[edge_type][1](
@@ -350,7 +341,7 @@ class BaselineModelWithHGT(torch.nn.Module):
       }
 
       for i in range(len(self.convs)):
-        out = self.bns_gnn_hgt[i](self.relu(self.convs[i](x_dict, edge_index, edge_attr_dict=rel_dict)))
+        out = self.bns_gnn_hgt[i](self.relu(self.convs[i](x_dict, edge_index_dict, edge_attr_dict=rel_dict)))
       
       out = {
         node_type: self.bns_gnn_node_post[node_type][1](
@@ -364,7 +355,7 @@ class BaselineModelWithHGT(torch.nn.Module):
             )
           )
         )
-        for node_type, x in node_dict.items()
+        for node_type, x in out.x_dict.items()
       }
 
     out = self.reshape_graph_embeddings(out["node"], graph_masking, graph.batch, len(ids_sent1))
