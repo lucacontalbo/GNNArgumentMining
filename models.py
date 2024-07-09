@@ -316,7 +316,7 @@ class BaselineModelWithHGT(torch.nn.Module):
     else:
       print(graph)
       print(graph.to_dict())
-      print(graph.x)
+      print(graph.x_dict)
       print(graph.edge_index)
       x_dict, edge_index_dict = graph.x_dict, graph.edge_index_dict
 
