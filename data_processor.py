@@ -230,6 +230,7 @@ class DataProcessor:
 
   def graph_to_pyg(self, graph, emb_size=300):
     node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph)
+    #print(edge_index)
 
     node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size).to(get_device())
     edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size).to(get_device())
@@ -247,6 +248,10 @@ class DataProcessor:
       
       for k,v in edges.items():
         data["node", k, "node"].edge_index = torch.tensor(v, dtype=torch.int64)
+      """try:
+        print(data.edge_index_dict)
+      except:
+        print("can't find edge_index_dict")"""
 
       edge_dict = {}
       relations = set(edge_type)
