@@ -320,7 +320,7 @@ class BaselineModelWithHGT(torch.nn.Module):
       #print(graph.edge_index_dict)
       x_dict, edge_index_dict = graph.x_dict, graph.edge_index
       print(x_dict["node"].shape)
-      print(edge_index_dict)
+      print(graph)
 
       x_dict = {
         node_type: self.bns_gnn_node[node_type][1](

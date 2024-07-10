@@ -253,7 +253,6 @@ class DataProcessor:
       for k,v in edges.items():
         data["node", k, "node"].edge_index = torch.tensor(v, dtype=torch.int64)
       
-
       edge_dict = {}
       relations = set(edge_type)
       for i, rel in enumerate(edge_type):
