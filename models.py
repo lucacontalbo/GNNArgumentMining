@@ -334,6 +334,7 @@ class BaselineModelWithHGT(torch.nn.Module):
         )
         for node_type, x in x_dict.items()
       }
+      
       rel_dict = {
         edge_type: self.bns_gnn_edge[edge_type][1](
           self.relu(
@@ -350,7 +351,7 @@ class BaselineModelWithHGT(torch.nn.Module):
       }
 
       for i in range(len(self.convs)):
-        out = self.bns_gnn_hgt[i](self.relu(self.convs[i](x_dict, edge_index_dict, edge_attr_dict=rel_dict)))
+        out = self.bns_gnn_hgt[i](self.relu(self.convs[i](x_dict, edge_index_dict, edge_attr_dict=None))) #edge_attr_dict=rel_dict)))
       
       out = {
         node_type: self.bns_gnn_node_post[node_type][1](
