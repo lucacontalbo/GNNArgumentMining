@@ -109,7 +109,7 @@ class DataProcessor:
 
     return examples
   
-  def _get_nodes_and_edges_from_graph(self, graph: list[list[str]]) -> tuple[dict, list[list[int]], list[str]]:
+  def _get_nodes_and_edges_from_graph(self, graph: list[list[str]], remove_duplicates: bool = False) -> tuple[dict, list[list[int]], list[str]]:
     """
     _get_nodes_and_edges_from_graph: list[list[str]] -> (dict, list[list[int]], list[str])
 
@@ -122,6 +122,7 @@ class DataProcessor:
     node_ids = {}
     edge_index = [[],[]]
     edge_type = []
+    links_added = set()
 
     for j, walk in enumerate(graph):
       if j == 50: break
@@ -133,9 +134,15 @@ class DataProcessor:
       
       for i in range(1,len(walk),2):
         walk[i] = walk[i].strip()
+        if remove_duplicates and (node_ids[walk[i-1]], node_ids[walk[i+1]]) in links_added:
+          continue
+
         edge_index[0].append(node_ids[walk[i-1]])
         edge_index[1].append(node_ids[walk[i+1]])
         edge_type.append(walk[i])
+
+        links_added.add((node_ids[walk[i-1]], node_ids[walk[i+1]]))
+    
     
     return node_ids, edge_index, edge_type
 
@@ -230,12 +237,9 @@ class DataProcessor:
 
   def graph_to_pyg(self, graph, emb_size=300):
     node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph)
-    #print(edge_index)
 
     node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size).to(get_device())
     edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size).to(get_device())
-    """print(node_feature_matrix)
-    print(edge_feature_matrix)"""
 
     if self.config["use_hgraph"]:
       data = HeteroData()
@@ -248,10 +252,7 @@ class DataProcessor:
       
       for k,v in edges.items():
         data["node", k, "node"].edge_index = torch.tensor(v, dtype=torch.int64)
-      """try:
-        print(data.edge_index_dict)
-      except:
-        print("can't find edge_index_dict")"""
+      
 
       edge_dict = {}
       relations = set(edge_type)
