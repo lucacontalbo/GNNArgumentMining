@@ -200,9 +200,10 @@ class HGTConv(MessagePassing):
         edge_index, edge_attr = construct_bipartite_edge_index(
             edge_index_dict, src_offset, dst_offset, edge_attr_dict=self.p_rel,
             num_nodes=k.size(0))
+        print(edge_attr)
         if edge_attr_dict is not None:
             edge_attr = self.edge_lin(edge_attr_dict)
-        print(edge_attr)
+
         out = self.propagate(edge_index, k=k, q=q, v=v, edge_attr=edge_attr)
 
         # Reconstruct output node embeddings dict:
