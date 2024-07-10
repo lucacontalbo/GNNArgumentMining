@@ -241,10 +241,10 @@ class DataProcessor:
         edges[link_name][1].append(edge_index_pair[1])
       
       for k,v in self.graphrelation2words.items():
-        data["node", v.lower(), "node"].edge_index = torch.tensor([], dtype=torch.int64)
+        data["node", self.graphrelation2words[v], "node"].edge_index = torch.tensor([], dtype=torch.int64)
 
       for k,v in edges.items():
-        data["node", k.lower(), "node"].edge_index = torch.tensor(v, dtype=torch.int64)
+        data["node", self.graphrelation2words[k], "node"].edge_index = torch.tensor(v, dtype=torch.int64)
       
       """try:
         print(data.x_dict)
