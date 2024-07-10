@@ -247,7 +247,7 @@ class DataProcessor:
       
       for k,v in edges.items():
         #print(v)
-        data["node", k, "node"].edge_index = v
+        data["node", k, "node"].edge_index = torch.tensor(v, dtype=torch.int64)
         #print(a)
       #print(data.edge_index_dict)
       edge_dict = {}

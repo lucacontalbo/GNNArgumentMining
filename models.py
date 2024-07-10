@@ -323,6 +323,9 @@ class BaselineModelWithHGT(torch.nn.Module):
       x_dict, edge_index_dict = graph.x_dict, graph.collect("edge_index", allow_empty=True)
       print(x_dict)
 
+      for node_type, x in x_dict.items():
+        print(x)
+
       x_dict = {
         node_type: self.bns_gnn_node[node_type][1](
           self.relu(
