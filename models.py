@@ -335,7 +335,7 @@ class BaselineModelWithHGT(torch.nn.Module):
         for node_type, x in x_dict.items()
       }
       
-      rel_dict = {
+      """rel_dict = {
         edge_type: self.bns_gnn_edge[edge_type][1](
           self.relu(
             self.edge_lin[edge_type][1](
@@ -348,7 +348,7 @@ class BaselineModelWithHGT(torch.nn.Module):
           )
         )
         for edge_type, x in edge_dict.items()
-      }
+      }"""
 
       for i in range(len(self.convs)):
         out = {
