@@ -191,6 +191,7 @@ class BaselineModelWithHGT(torch.nn.Module):
   def __init__(self, config, metadata):
     super(BaselineModelWithHGT, self).__init__()
 
+    device = get_device()
     self.num_classes = config["num_classes"]
     self.embed_size = config["embed_size"]
     self.embed_size_gnn = self.embed_size // 2
@@ -223,25 +224,25 @@ class BaselineModelWithHGT(torch.nn.Module):
     for node_type in metadata[0]:
       self.node_lin[node_type] = [torch.nn.Linear(in_features=300, out_features=self.embed_size_gnn)]
       self.node_lin[node_type].append(torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn))
-      self.node_lin[node_type] = torch.nn.ModuleList(self.node_lin[node_type])
+      self.node_lin[node_type] = torch.nn.ModuleList(self.node_lin[node_type]).to(device)
       self.bns_gnn_node = {
-        node_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(2)])
+        node_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(2)]).to(device)
       }
 
     for node_type in metadata[0]:
       self.node_lin_post[node_type] = [torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn)]
       self.node_lin_post[node_type].append(torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn))
-      self.node_lin_post[node_type] = torch.nn.ModuleList(self.node_lin_post[node_type])
+      self.node_lin_post[node_type] = torch.nn.ModuleList(self.node_lin_post[node_type]).to(device)
       self.bns_gnn_node_post = {
-        node_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(2)])
+        node_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(2)]).to(device)
       }
     
     for edge_type in metadata[1]:
       self.edge_lin[edge_type[1]] = [torch.nn.Linear(in_features=300, out_features=self.embed_size_gnn)]
       self.edge_lin[edge_type[1]].append(torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn))
-      self.edge_lin[edge_type[1]] = torch.nn.ModuleList(self.edge_lin[edge_type[1]])
+      self.edge_lin[edge_type[1]] = torch.nn.ModuleList(self.edge_lin[edge_type[1]]).to(device)
       self.bns_gnn_edge = {
-        edge_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for i in range(2)])
+        edge_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for i in range(2)]).to(device)
       }
 
     self.post_concat = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
