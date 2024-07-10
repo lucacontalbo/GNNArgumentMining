@@ -3,6 +3,7 @@ import random
 import functools
 import argparse
 import numpy as np
+import json
 
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
@@ -25,6 +26,16 @@ def arg_check(args):
 
     assert args["dataset"] in ["student_essay", "debate", "m-arg"], "The dataset must be one of 'student_essay', 'debate' or 'm-arg'"
     assert len(args["class_weight"]) == args["num_classes"] or len(args["class_weight"]) == 0, "The class_weight must be of the same size as the number of targets inside the dataset"
+
+@functools.cache
+def get_json(path):
+    try:
+        with open(path, 'r') as file:
+            mapping = json.load(file)
+    except:
+       raise FileNotFoundError(f"File {path} not found")
+
+    return mapping
 
 def get_config():
     parser = argparse.ArgumentParser(description="Argument parser for model configuration")

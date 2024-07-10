@@ -13,7 +13,7 @@ from transformers import AutoTokenizer, pipeline
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 
-from utils import get_device
+from utils import get_device, get_json
 
 JSON_PATH = Path("json/")
 PRETRAINED_EMB_PATHS = Path("pretrained_embs/")
@@ -64,7 +64,7 @@ class DataProcessor:
     self.tokenizer = AutoTokenizer.from_pretrained(self.config["model_name"])
     self.max_sent_len = config["max_sent_len"]
     self.max_num_nodes = 1024
-    self.graphrelation2words = self.load_json(JSON_PATH / "graphrelation2words.json")
+    self.graphrelation2words = get_json(JSON_PATH / "graphrelation2words.json")
 
   def __str__(self,):
     pattern = """General data processor: \n\n Tokenizer: {}\n\nMax sentence length: {}""".format(self.config["model_name"], self.max_sent_len)
@@ -168,16 +168,6 @@ class DataProcessor:
   @functools.cache
   def _get_word2vec_embeddings(self):
      pass
-
-  @functools.cache
-  def load_json(self, path):
-    try:
-        with open(path, 'r') as file:
-            mapping = json.load(file)
-    except:
-       raise FileNotFoundError(f"File {path} not found")
-
-    return mapping
      
   def _get_embedding_from_word(self, text, word_embeddings, word2idx, emb_size=300):
     node_emb = []
@@ -250,9 +240,18 @@ class DataProcessor:
         edges[link_name][0].append(edge_index_pair[0])
         edges[link_name][1].append(edge_index_pair[1])
       
+      for k,v in self.graphrelation2words.items():
+        data["node", v, "node"].edge_index = torch.tensor([], dtype=torch.int64)
+
       for k,v in edges.items():
         data["node", k, "node"].edge_index = torch.tensor(v, dtype=torch.int64)
       
+      """try:
+        print(data.x_dict)
+        print(data.edge_index_dict)
+      except:
+        print("can't get edge index")"""
+
       edge_dict = {}
       relations = set(edge_type)
       for i, rel in enumerate(edge_type):
