@@ -243,7 +243,7 @@ class DataProcessor:
       
       for k,v in edges.items():
         data["node", k, "node"].edge_index = v
-      
+      #print(data.edge_index_dict)
       edge_dict = {}
       relations = set(edge_type)
       for i, rel in enumerate(edge_type):
