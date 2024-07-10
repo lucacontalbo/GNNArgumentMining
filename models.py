@@ -5,6 +5,7 @@ from torch import nn
 from torch_geometric.nn import GCNConv
 
 from layers import HGTConv
+from utils import get_device
 
 
 class GRLayer(torch.autograd.Function):

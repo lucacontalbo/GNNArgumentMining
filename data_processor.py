@@ -246,10 +246,8 @@ class DataProcessor:
         edges[link_name][1].append(edge_index_pair[1])
       
       for k,v in edges.items():
-        #print(v)
         data["node", k, "node"].edge_index = torch.tensor(v, dtype=torch.int64)
-        #print(a)
-      #print(data.edge_index_dict)
+
       edge_dict = {}
       relations = set(edge_type)
       for i, rel in enumerate(edge_type):
