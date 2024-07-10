@@ -368,7 +368,7 @@ class BaselineModelWithHGT(torch.nn.Module):
             )
           )
         )
-        for node_type, x in out.x_dict.items()
+        for node_type, x in out.items()
       }
 
     out = self.reshape_graph_embeddings(out["node"], graph_masking, graph.batch, len(ids_sent1))
