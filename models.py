@@ -487,6 +487,7 @@ class BaselineModelWithGNN(torch.nn.Module):
       graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
     else:
       x, edge_index = graph.x, graph.edge_index
+      print(x.shape)
 
       x = self.bns_gnn[0](self.relu(self.pre_mlp1(x)))
       x = self.bns_gnn[1](self.relu(self.pre_mlp2(x)))
