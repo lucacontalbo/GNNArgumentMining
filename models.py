@@ -318,7 +318,7 @@ class BaselineModelWithHGT(torch.nn.Module):
     else:
 
       #print(graph.edge_index_dict)
-      x_dict, edge_index_dict = graph.x_dict, graph.collect("edge_index", allow_empty=True)
+      x_dict, edge_index_dict = graph.x_dict, graph.edge_index
       print(x_dict["node"].shape)
       print(edge_index_dict)
 
