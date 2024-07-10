@@ -32,23 +32,25 @@ class dataset(Dataset):
 
 def collate_fn(examples):
     ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, labels = zip(*examples)
-    
-    ids_sent1 = torch.tensor(list(ids_sent1), dtype=torch.long)
-    segs_sent1 = torch.tensor(list(segs_sent1), dtype=torch.long)
-    att_mask_sent1 = torch.tensor(list(att_mask_sent1), dtype=torch.long)
+    dev = get_device()
+
+    ids_sent1 = torch.tensor(list(ids_sent1), dtype=torch.long).to(dev)
+    segs_sent1 = torch.tensor(list(segs_sent1), dtype=torch.long).to(dev)
+    att_mask_sent1 = torch.tensor(list(att_mask_sent1), dtype=torch.long).to(dev)
     graph = Batch.from_data_list(list(graph)).to(get_device())
-    graph_masking = torch.tensor(list(graph_masking), dtype=torch.long)
-    labels = torch.tensor(list(labels), dtype=torch.long)
+    graph_masking = torch.tensor(list(graph_masking), dtype=torch.long).to(dev)
+    labels = torch.tensor(list(labels), dtype=torch.long).to(dev)
 
     return ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict[0], labels
 
 def collate_fn_adv(examples):
     ids_sent1, segs_sent1, att_mask_sent1, position_sep, labels = map(list, zip(*examples))
+    dev = get_device()
 
-    ids_sent1 = torch.tensor(ids_sent1, dtype=torch.long)
-    segs_sent1 = torch.tensor(segs_sent1, dtype=torch.long)
-    att_mask_sent1 = torch.tensor(att_mask_sent1, dtype=torch.long)
-    position_sep = torch.tensor(position_sep, dtype=torch.long)
+    ids_sent1 = torch.tensor(ids_sent1, dtype=torch.long).to(dev)
+    segs_sent1 = torch.tensor(segs_sent1, dtype=torch.long).to(dev)
+    att_mask_sent1 = torch.tensor(att_mask_sent1, dtype=torch.long).to(dev)
+    position_sep = torch.tensor(position_sep, dtype=torch.long).to(dev)
 
     return ids_sent1, segs_sent1, att_mask_sent1, position_sep, labels
 
@@ -231,6 +233,8 @@ class DataProcessor:
 
     node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size)
     edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size)
+    """print(node_feature_matrix)
+    print(edge_feature_matrix)"""
 
     if self.config["use_hgraph"]:
       data = HeteroData()
@@ -242,7 +246,9 @@ class DataProcessor:
         edges[link_name][1].append(edge_index_pair[1])
       
       for k,v in edges.items():
+        #print(v)
         data["node", k, "node"].edge_index = v
+        #print(a)
       #print(data.edge_index_dict)
       edge_dict = {}
       relations = set(edge_type)
