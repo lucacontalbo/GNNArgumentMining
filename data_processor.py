@@ -231,8 +231,8 @@ class DataProcessor:
   def graph_to_pyg(self, graph, emb_size=300):
     node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph)
 
-    node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size)
-    edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size)
+    node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size).to(get_device())
+    edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size).to(get_device())
     """print(node_feature_matrix)
     print(edge_feature_matrix)"""
 
