@@ -24,7 +24,7 @@ class Trainer:
         loss_fn2 = nn.CrossEntropyLoss()
 
         for batch in tqdm(train_loader, desc='Iteration'):
-            batch = tuple(t.to(self.device) if isinstance(t, torch.Tensor) else t for t in batch)
+            #batch = tuple(t.to(self.device) if isinstance(t, torch.Tensor) else t for t in batch)
 
             ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, labels = batch
 
@@ -59,9 +59,10 @@ class Trainer:
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
-            if scheduler is not None:
-                scheduler.step()
             optimizer.zero_grad()
+
+        if scheduler is not None:
+            scheduler.step()
 
         timing = time.time() - epoch_start_time
         cur_lr = optimizer.param_groups[0]["lr"]

@@ -249,6 +249,13 @@ class BaselineModelWithHGT(torch.nn.Module):
     self.post_concat = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
     self.relu = torch.nn.ReLU()
 
+    self.dp1 = torch.nn.Dropout(p=0.2)
+    self.dp2 = torch.nn.Dropout(p=0.2)
+    self.dp6 = torch.nn.Dropout(p=0.2)
+    self.dp7 = torch.nn.Dropout(p=0.2)
+    self.dp8 = torch.nn.Dropout(p=0.2)
+    self.dp_hgt = torch.nn.ModuleList([torch.nn.Dropout(p=0.2) for _ in range(3)])
+
     self._init_weights(self.linear_layer)
     self._init_weights(self.Q)
     self._init_weights(self.K)
@@ -321,59 +328,44 @@ class BaselineModelWithHGT(torch.nn.Module):
       x_dict, edge_index_dict = graph.x_dict, graph.edge_index_dict
 
       x_dict = {
-        node_type: self.bns_gnn_node[node_type][1](
+        node_type: self.dp2(self.bns_gnn_node[node_type][1](
           self.relu(
             self.node_lin[node_type][1](
-              self.bns_gnn_node[node_type][0](
+              self.dp1(self.bns_gnn_node[node_type][0](
                 self.relu(
                   self.node_lin[node_type][0](x)
                 )
-              )
+              ))
             )
           )
-        )
+        ))
         for node_type, x in x_dict.items()
       }
-      
-      """rel_dict = {
-        edge_type: self.bns_gnn_edge[edge_type][1](
-          self.relu(
-            self.edge_lin[edge_type][1](
-              self.bns_gnn_edge[edge_type][0](
-                self.relu(
-                  self.edge_lin[edge_type][0](x)
-                )
-              )
-            )
-          )
-        )
-        for edge_type, x in edge_dict.items()
-      }"""
 
       for i in range(len(self.convs)):
         out = {
-          node_type: self.bns_gnn_hgt[i](self.relu(self.convs[i](x_dict, edge_index_dict, edge_attr_dict=None)[node_type]))
+          node_type: self.dp_hgt[i](self.bns_gnn_hgt[i](self.relu(self.convs[i](x_dict, edge_index_dict, edge_attr_dict=None)[node_type])))
           for node_type, _ in x_dict.items()
         } #edge_attr_dict=rel_dict)))
       
       out = {
-        node_type: self.bns_gnn_node_post[node_type][1](
+        node_type: self.dp6(self.bns_gnn_node_post[node_type][1](
           self.relu(
             self.node_lin_post[node_type][1](
-              self.bns_gnn_node_post[node_type][0](
+              self.dp7(self.bns_gnn_node_post[node_type][0](
                 self.relu(
                   self.node_lin_post[node_type][0](x)
                 )
-              )
+              ))
             )
           )
-        )
+        ))
         for node_type, x in out.items()
       }
 
     out = self.reshape_graph_embeddings(out["node"], graph_masking, graph["node"].batch, len(ids_sent1))
     out = out.view(out.shape[0], -1)
-    out = self.bns[0](self.relu(self.post_concat(out)))
+    out = self.dp8(self.bns[0](self.relu(self.post_concat(out))))
 
     att_output = self.bns[1](H_sent) + out
 

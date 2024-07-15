@@ -8,6 +8,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformers import AdamW
 from pathlib import Path
+from torch.optim.lr_scheduler import LinearLR, StepLR
 
 from utils import set_random_seeds, get_config, get_device
 from data_processor import StudentEssayProcessor, StudentEssayWithDiscourseInjectionProcessor,\
@@ -117,7 +118,11 @@ def run():
       "weight_decay": 0.0
     },
   ]
+
   optimizer = AdamW(optimizer_grouped_parameters, lr=config["lr"], weight_decay=config["weight_decay"])
+  if config["scheduler"]:
+    scheduler = LinearLR(optimizer, start_factor=1, end_factor=0.5, total_iters=30)
+    #scheduler = StepLR(optimizer, step_size=6, gamma=0.5)
 
   loss_fn = nn.CrossEntropyLoss(weight=torch.tensor(config["class_weight"]).to(device))
 
@@ -168,8 +173,9 @@ def run():
         best_dev_f1 = -1
   else:
     for epoch in range(config["epochs"]):
-      print('===== Start training: epoch {} ====='.format(epoch + 1))
-      trainer.train(epoch, model, loss_fn, optimizer, train_dataloader, discovery_weight=config["discovery_weight"], adv_weight=config["adv_weight"])
+      print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
+      trainer.train(epoch, model, loss_fn, optimizer, train_dataloader,
+                    discovery_weight=config["discovery_weight"], adv_weight=config["adv_weight"], scheduler=scheduler)
       dev_a, dev_p, dev_r, dev_f1 = trainer.val(model, dev_dataloader)
       test_a, test_p, test_r, test_f1 = trainer.val(model, test_dataloader)
       if dev_f1 > best_dev_f1:

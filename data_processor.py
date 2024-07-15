@@ -377,7 +377,7 @@ class DebateProcessor(DataProcessor):
         label = row.iloc[4]
         split = row.iloc[5]
         graph = ast.literal_eval(row.iloc[8])
-        graph, arg0_pos, arg1_pos = self.graph_to_pyg(graph)
+        graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph)
 
         if pipe is not None:
           ds_marker = self.pipe(f"{sent}</s></s>{target}")[0]["label"]
@@ -393,11 +393,11 @@ class DebateProcessor(DataProcessor):
           l = [0,1]
 
         if split == "train":
-          result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
+          result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, edge_dict, l])
         elif split == "dev":
-          result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
+          result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, edge_dict, l])
         elif split == "test":
-          result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
+          result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, edge_dict, l])
         else:
           raise ValueError(f"unknown dataset split: {split}")
 
@@ -436,7 +436,7 @@ class MARGProcessor(DataProcessor):
               label = row.iloc[3].strip()
               split = row.iloc[-1]
               graph = ast.literal_eval(row.iloc[5])
-              graph, arg0_pos, arg1_pos = self.graph_to_pyg(graph)
+              graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph)
 
               l=[0,0,0]
               if label == 'support':
@@ -447,11 +447,11 @@ class MARGProcessor(DataProcessor):
                 l = [0,0,1]
 
               if split == "train":
-                result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
+                result_train.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, edge_dict, l])
               elif split == "dev":
-                result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
+                result_dev.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, edge_dict, l])
               elif split == "test":
-                result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, l])
+                result_test.append([sample_id, sent, target, graph, arg0_pos, arg1_pos, edge_dict, l])
               else:
                 raise ValueError(f"unknown dataset split: {split}")
 

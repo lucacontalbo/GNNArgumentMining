@@ -59,6 +59,7 @@ def get_config():
     parser.add_argument('--grid_search', action="store_true", default=0, help='Perform grid search')
     parser.add_argument('--visualize', type=str, default="", help='Visualize results')
     parser.add_argument('--dataset', type=str, required=True, help='Dataset name')
+    parser.add_argument('--scheduler', action="store_true", default=0, help='Use lr scheduler')
 
     parser.add_argument('--class_weight', type=float, nargs='+', default=[], help='Class weights')
 
