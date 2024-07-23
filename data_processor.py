@@ -190,7 +190,7 @@ class DataProcessor:
 
     return node_emb
 
-  def _get_node_features(self, node_ids: dict, pre_trained_emb = "glove", emb_size=300) -> torch.tensor:
+  def _get_node_features(self, node_ids: dict, text1: str, text2: str, pre_trained_emb = "glove", emb_size=300) -> torch.tensor:
     if pre_trained_emb == "glove":
        word_embeddings, word2idx = self._get_glove_embeddings(emb_size)
     elif pre_trained_emb == "word2vec":
@@ -201,6 +201,12 @@ class DataProcessor:
     node_embeddings = torch.tensor([], dtype=torch.float32)
 
     for text, id in node_ids.items():
+      if text == "[Arg0]":
+        text = text1
+        print("in arg0")
+      elif text == "[Arg1]":
+        text = text2
+        print("in arg1")
       stripped_text = text.strip()
       if stripped_text == '':
         node_emb = self._get_embedding_from_word(text, word_embeddings, word2idx, emb_size)
@@ -228,10 +234,10 @@ class DataProcessor:
 
     return edge_embeddings
 
-  def graph_to_pyg(self, graph, emb_size=300):
+  def graph_to_pyg(self, graph, text1, text2, emb_size=300):
     node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph)
 
-    node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size).to(get_device())
+    node_feature_matrix = self._get_node_features(node_ids, text1, text2, emb_size=emb_size).to(get_device())
     edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size).to(get_device())
 
     if self.config["use_hgraph"]:
