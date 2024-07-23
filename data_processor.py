@@ -201,7 +201,6 @@ class DataProcessor:
     node_embeddings = torch.tensor([], dtype=torch.float32)
 
     for text, id in node_ids.items():
-      print(text)
       if text == "[Arg1]":
         text = text1
         #print("in arg0")
