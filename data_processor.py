@@ -201,12 +201,13 @@ class DataProcessor:
     node_embeddings = torch.tensor([], dtype=torch.float32)
 
     for text, id in node_ids.items():
+      print(text)
       if text == "[Arg0]":
         text = text1
-        print("in arg0")
+        #print("in arg0")
       elif text == "[Arg1]":
         text = text2
-        print("in arg1")
+        #print("in arg1")
       stripped_text = text.strip()
       if stripped_text == '':
         node_emb = self._get_embedding_from_word(text, word_embeddings, word2idx, emb_size)
