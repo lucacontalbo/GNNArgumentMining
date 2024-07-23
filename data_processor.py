@@ -202,10 +202,10 @@ class DataProcessor:
 
     for text, id in node_ids.items():
       print(text)
-      if text == "[Arg0]":
+      if text == "[Arg1]":
         text = text1
         #print("in arg0")
-      elif text == "[Arg1]":
+      elif text == "[Arg2]":
         text = text2
         #print("in arg1")
       stripped_text = text.strip()

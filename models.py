@@ -327,12 +327,12 @@ class BaselineModelWithHGT(torch.nn.Module):
       #print(graph.edge_index_dict)
       x_dict, edge_index_dict = graph.x_dict, graph.edge_index_dict
 
-      print(x_dict)
+      """print(x_dict)
       num_arg0 = x_dict["[Arg0]"].shape[0]
       num_arg1 = x_dict["[Arg1]"].shape[0]
       print(f"Num of arg0: {num_arg0}")
       print(f"Num of arg1: {num_arg1}")
-      print(edge_index_dict)
+      print(edge_index_dict)"""
 
       x_dict = {
         node_type: self.dp2(self.bns_gnn_node[node_type][1](
