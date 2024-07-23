@@ -192,10 +192,13 @@ def run():
     for epoch in range(config["epochs"]):
       if config["scheduler"]:
         print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
+        trainer.train(epoch, model, loss_fn, optimizer, train_dataloader,
+                      discovery_weight=config["discovery_weight"], adv_weight=config["adv_weight"], scheduler=scheduler)
       else:
         print('===== Start training: epoch {} ====='.format(epoch + 1))
-      trainer.train(epoch, model, loss_fn, optimizer, train_dataloader,
-                    discovery_weight=config["discovery_weight"], adv_weight=config["adv_weight"], scheduler=scheduler)
+        trainer.train(epoch, model, loss_fn, optimizer, train_dataloader,
+                      discovery_weight=config["discovery_weight"], adv_weight=config["adv_weight"])
+
       dev_a, dev_p, dev_r, dev_f1 = trainer.val(model, dev_dataloader)
       test_a, test_p, test_r, test_f1 = trainer.val(model, test_dataloader)
       if dev_f1 > best_dev_f1:
