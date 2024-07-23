@@ -17,7 +17,7 @@ from data_processor import StudentEssayProcessor, StudentEssayWithDiscourseInjec
                             DiscourseMarkerProcessor, dataset,\
                             collate_fn, collate_fn_adv
 from batch_sampler import BalancedSampler
-from models import AdversarialNet, BaselineModel, BaselineModelWithGNN, BaselineModelWithHGT
+from models import AdversarialNet, BaselineModel, BaselineModelWithGNN, BaselineModelWithHGT, AdversarialModelWithHGT
 from train import Trainer
 
 DATA_PATH = Path("data/")
@@ -55,7 +55,7 @@ def run():
 
   if config["adversarial"]:
     df = datasets.load_dataset("discovery","discovery", trust_remote_code=True)
-    adv_processor = DiscourseMarkerProcessor(config)
+    adv_processor = DiscourseMarkerProcessor(config, device)
     if not config["dataset_from_saved"]:
       print("processing discourse marker dataset...")
       train_adv = adv_processor.process_dataset(df["train"])
@@ -91,9 +91,20 @@ def run():
       model = BaselineModel(config)
   else:
     sampler_train = BalancedSampler(data_train, train_adv, config["batch_size"])
-    train_dataloader = DataLoader(train_set, batch_sampler=sampler_train, collate_fn=collate_fn_adv)
+    train_dataloader = DataLoader(train_set, batch_sampler=sampler_train, collate_fn=collate_fn)
 
-    model = AdversarialNet(config)
+    if config["use_hgraph"]:
+      total_metadata = [["node"], [
+        ("node", "caused by", "node"),
+        ("node", "hinders", "node"),
+        ("node", "is before", "node"),
+        ("node", "is after", "node"),
+        ("node", "causes", "node"),
+        ("node", "hindered by", "node")
+      ]]
+      model = AdversarialModelWithHGT(config, total_metadata)
+    else:
+      model = AdversarialNet(config)
 
     if len(config["visualize"]) > 0:
         try:
@@ -120,9 +131,9 @@ def run():
   ]
 
   optimizer = AdamW(optimizer_grouped_parameters, lr=config["lr"], weight_decay=config["weight_decay"])
+
   if config["scheduler"]:
     scheduler = LinearLR(optimizer, start_factor=1, end_factor=0.5, total_iters=30)
-    #scheduler = StepLR(optimizer, step_size=6, gamma=0.5)
 
   loss_fn = nn.CrossEntropyLoss(weight=torch.tensor(config["class_weight"]).to(device))
 
@@ -139,10 +150,11 @@ def run():
 
     for discovery_weight in range_disc:
       for adv_weight in range_adv:
+        if discovery_weight < 0.4: continue
         for epoch in range(config["epochs"]):
-          print('===== Start training: epoch {} ====='.format(epoch + 1))
+          print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
           print(f"*** trying with discovery_weight = {discovery_weight}, adv_weight = {adv_weight}")
-          trainer.train(epoch, model, loss_fn, optimizer, train_dataloader, discovery_weight=discovery_weight, adv_weight=adv_weight)
+          trainer.train(epoch, model, loss_fn, optimizer, train_dataloader, discovery_weight=discovery_weight, adv_weight=adv_weight, scheduler=scheduler)
           dev_a, dev_p, dev_r, dev_f1 = trainer.val(model, dev_dataloader)
           test_a, test_p, test_r, test_f1 = trainer.val(model, test_dataloader)
           if dev_f1 > best_dev_f1:
@@ -165,10 +177,15 @@ def run():
         del optimizer
 
         set_random_seeds(config["seed"])
-        model = AdversarialNet(config)
+        if config["use_hgraph"]:
+           model = AdversarialModelWithHGT(config, total_metadata)
+        else:
+           model = AdversarialNet(config)
         model = model.to(device)
 
         optimizer = AdamW(model.parameters(), lr=config["lr"], weight_decay=1e-2)
+        if config["scheduler"]:
+           scheduler = LinearLR(optimizer, start_factor=1, end_factor=0.5, total_iters=30)
 
         best_dev_f1 = -1
   else:

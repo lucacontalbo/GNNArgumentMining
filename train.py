@@ -28,7 +28,23 @@ class Trainer:
 
             ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, labels = batch
 
-            if self.config["adversarial"]:
+            if self.config["adversarial"] and self.config["use_hgraph"]:
+                pred_final, pred, pred_adv, task_pred = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict)
+                try:
+                    half_batch_size = len(labels) // 2
+                    targets, targets_adv, targets_task = labels[:half_batch_size], labels[half_batch_size:], [[0, 1]] * half_batch_size + [[1, 0]] * half_batch_size
+                    targets, targets_adv, targets_task = torch.tensor(np.array(targets)).to(self.device), \
+                                                        torch.tensor(np.array(targets_adv)).to(self.device), \
+                                                        torch.tensor(np.array(targets_task)).to(self.device)
+                except:
+                    raise ValueError("batch for adversarial training has an ambiguous shape")
+                
+                loss_final = loss_fn(pred_final, targets.float())
+                loss1 = loss_fn(pred, targets.float())
+                loss2 = loss_fn2(pred_adv, targets_adv.float())
+                loss3 = loss_fn2(task_pred, targets_task.float())
+                loss = loss_final + discovery_weight*loss1 + discovery_weight*loss2 + adv_weight*loss3
+            elif self.config["adversarial"]:
                 pred, pred_adv, task_pred = model(ids_sent1, segs_sent1, att_mask_sent1)
                 try:
                     half_batch_size = len(labels) // 2

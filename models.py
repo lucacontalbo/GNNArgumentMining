@@ -478,7 +478,6 @@ class BaselineModelWithGNN(torch.nn.Module):
       graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
     else:
       x, edge_index = graph.x, graph.edge_index
-      print(x.shape)
 
       x = self.bns_gnn[0](self.relu(self.pre_mlp1(x)))
       x = self.bns_gnn[1](self.relu(self.pre_mlp2(x)))
@@ -501,3 +500,227 @@ class BaselineModelWithGNN(torch.nn.Module):
     predictions = self.linear_layer(att_output)
 
     return predictions
+
+class AdversarialModelWithHGT(torch.nn.Module):
+  def __init__(self, config, metadata):
+    super(AdversarialModelWithHGT, self).__init__()
+
+    device = get_device()
+    self.num_classes_adv = config["num_classes_adv"]
+    self.num_classes = config["num_classes"]
+    self.batch_size=config["batch_size"]
+    self.embed_size = config["embed_size"]
+    self.embed_size_gnn = self.embed_size // 2
+    self.first_last_avg = config["first_last_avg"]
+
+    self.plm = AutoModel.from_pretrained(config["model_name"])
+    config = self.plm.config
+    config.type_vocab_size = 4
+    self.plm.embeddings.token_type_embeddings = nn.Embedding(
+      config.type_vocab_size, config.hidden_size
+    )
+    self.plm._init_weights(self.plm.embeddings.token_type_embeddings)
+
+    for param in self.plm.parameters():
+      param.requires_grad = True
+
+    self.linear_layer = torch.nn.Linear(in_features=self.embed_size, out_features=self.num_classes)
+    self.multi_head_att = torch.nn.MultiheadAttention(self.embed_size, 8, batch_first=True)
+    self.Q = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+    self.K = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+    self.V = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+
+    self.convs = torch.nn.ModuleList([HGTConv(self.embed_size_gnn,self.embed_size_gnn, metadata=metadata) for _ in range(3)])
+    self.bns_gnn_hgt = torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(3)])
+    self.bns = torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size) for _ in range(2)])
+    self.linear_layer_adv = torch.nn.Linear(in_features=self.embed_size, out_features=self.num_classes_adv)
+    self.task_linear = torch.nn.Linear(in_features=self.embed_size, out_features=2)
+
+    self.node_lin = {}
+    self.edge_lin = {}
+    self.node_lin_post = {}
+    for node_type in metadata[0]:
+      self.node_lin[node_type] = [torch.nn.Linear(in_features=300, out_features=self.embed_size_gnn)]
+      self.node_lin[node_type].append(torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn))
+      self.node_lin[node_type] = torch.nn.ModuleList(self.node_lin[node_type]).to(device)
+      self.bns_gnn_node = {
+        node_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(2)]).to(device)
+      }
+
+    for node_type in metadata[0]:
+      self.node_lin_post[node_type] = [torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn)]
+      self.node_lin_post[node_type].append(torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn))
+      self.node_lin_post[node_type] = torch.nn.ModuleList(self.node_lin_post[node_type]).to(device)
+      self.bns_gnn_node_post = {
+        node_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(2)]).to(device)
+      }
+    
+    for edge_type in metadata[1]:
+      self.edge_lin[edge_type[1]] = [torch.nn.Linear(in_features=300, out_features=self.embed_size_gnn)]
+      self.edge_lin[edge_type[1]].append(torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn))
+      self.edge_lin[edge_type[1]] = torch.nn.ModuleList(self.edge_lin[edge_type[1]]).to(device)
+      self.bns_gnn_edge = {
+        edge_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for i in range(2)]).to(device)
+      }
+
+    self.post_concat = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
+    self.relu = torch.nn.ReLU()
+
+    self.dp1 = torch.nn.Dropout(p=0.2)
+    self.dp2 = torch.nn.Dropout(p=0.2)
+    self.dp6 = torch.nn.Dropout(p=0.2)
+    self.dp7 = torch.nn.Dropout(p=0.2)
+    self.dp8 = torch.nn.Dropout(p=0.2)
+    self.dp_hgt = torch.nn.ModuleList([torch.nn.Dropout(p=0.2) for _ in range(3)])
+
+    self._init_weights(self.linear_layer)
+    self._init_weights(self.linear_layer_adv)
+    self._init_weights(self.task_linear)
+    self._init_weights(self.Q)
+    self._init_weights(self.K)
+    self._init_weights(self.V)
+    self._init_weights(self.multi_head_att)
+    self._init_weights(self.convs)
+    self._init_weights(self.node_lin)
+    self._init_weights(self.edge_lin)
+    self._init_weights(self.node_lin_post)
+    self._init_weights(self.post_concat)
+
+
+  def _init_weights(self, module):
+    """Initialize the weights"""
+    if isinstance(module, (nn.Linear, nn.Embedding)):
+      module.weight.data.normal_(mean=0.0, std=self.plm.config.initializer_range)
+    elif isinstance(module, nn.LayerNorm):
+      module.bias.data.zero_()
+      module.weight.data.fill_(1.0)
+    if isinstance(module, nn.Linear) and module.bias is not None:
+      module.bias.data.zero_()
+    if isinstance(module, nn.ModuleList):
+      for d in module:
+        self._init_weights(d)
+    
+
+  def reshape_graph_embeddings(self, out, graph_masking, batch_mapping, batch_size=64):
+    """
+    reshape_graph_embeddings: out (torch.Tensor graph_batch_size x embedding size) -> (torch.Tensor batch_size x 2 x embedding_size)
+    """
+
+    nodes = []
+
+    for i in range(batch_size):
+      indices = (batch_mapping == i).nonzero(as_tuple=False)
+      indices_args = (graph_masking[i, :] == 1).nonzero(as_tuple=False)
+      if len(indices_args) > 0 and len(indices) > 0:
+        nodes_i = out[indices, :][indices_args, :].reshape(-1, self.embed_size_gnn)
+      else:
+        #zero embeddings if there is no graph for a specific point
+        nodes_i = torch.zeros(2, self.embed_size_gnn, dtype=torch.float32).to("cuda")
+      nodes.append(nodes_i)
+    
+    return torch.stack(nodes, dim=0).to("cuda")
+
+  @torch.autocast(device_type="cuda")
+  def forward(self, ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, visualize=False):
+    out_sent1 = self.plm(ids_sent1, token_type_ids=segs_sent1, attention_mask=att_mask_sent1, output_hidden_states=True)
+
+    last_sent1, first_sent1 = out_sent1.hidden_states[-1], out_sent1.hidden_states[1]
+
+    if self.first_last_avg:
+      embed_sent1 = torch.div((last_sent1 + first_sent1), 2)
+    else:
+      embed_sent1 = last_sent1
+
+    H_sent = torch.mean(embed_sent1, dim=1)
+
+    if visualize:
+      return H_sent
+    
+    predictions = None
+    predictions_adv = None
+    task_predictions = None
+
+    if self.training:
+      samples = H_sent[:self.batch_size // 2, :]
+      samples_adv = H_sent[self.batch_size // 2:, ]
+
+      predictions = self.linear_layer(samples)
+      predictions_adv = self.linear_layer_adv(samples_adv)
+
+      mean_grl = GRLayer.apply(H_sent, .01)
+      task_prediction = self.task_linear(mean_grl)
+
+      #return predictions, predictions_adv, task_prediction
+    #else:
+    #  predictions = self.linear_layer(H_sent)
+
+    try:
+      num_nodes = len(graph.x)
+    except:
+      num_nodes = len(graph.x_dict)
+
+    if num_nodes == 0:
+      graph_embedding = [0] * len(ids_sent1)
+      graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
+    else:
+
+      x_dict, edge_index_dict = graph.x_dict, graph.edge_index_dict
+      num_arg0 = x_dict["[Arg0]"].shape[0]
+      num_arg1 = x_dict["[Arg1]"].shape[0]
+      print(f"Num of arg0: {num_arg0}")
+      print(f"Num of arg1: {num_arg1}")
+
+      x_dict = {
+        node_type: self.dp2(self.bns_gnn_node[node_type][1](
+          self.relu(
+            self.node_lin[node_type][1](
+              self.dp1(self.bns_gnn_node[node_type][0](
+                self.relu(
+                  self.node_lin[node_type][0](x)
+                )
+              ))
+            )
+          )
+        ))
+        for node_type, x in x_dict.items()
+      }
+
+      for i in range(len(self.convs)):
+        out = {
+          node_type: self.dp_hgt[i](self.bns_gnn_hgt[i](self.relu(self.convs[i](x_dict, edge_index_dict, edge_attr_dict=None)[node_type])))
+          for node_type, _ in x_dict.items()
+        } #edge_attr_dict=rel_dict)))
+      
+      out = {
+        node_type: self.dp6(self.bns_gnn_node_post[node_type][1](
+          self.relu(
+            self.node_lin_post[node_type][1](
+              self.dp7(self.bns_gnn_node_post[node_type][0](
+                self.relu(
+                  self.node_lin_post[node_type][0](x)
+                )
+              ))
+            )
+          )
+        ))
+        for node_type, x in out.items()
+      }
+
+    out = self.reshape_graph_embeddings(out["node"], graph_masking, graph["node"].batch, len(ids_sent1))
+    out = out.view(out.shape[0], -1)
+    out = self.dp8(self.bns[0](self.relu(self.post_concat(out))))
+
+    if self.training:
+      att_output = self.bns[1](H_sent[:self.batch_size // 2, :]) + out[:self.batch_size // 2, :]
+    else:
+      att_output = self.bns[1](H_sent) + out
+
+    if visualize:
+      return H_sent
+
+    final_predictions = self.linear_layer(att_output)
+
+    try:
+      return final_predictions, predictions, predictions_adv, task_prediction
+    except:
+      return final_predictions

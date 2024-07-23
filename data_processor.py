@@ -37,14 +37,17 @@ def collate_fn(examples):
     ids_sent1 = torch.tensor(list(ids_sent1), dtype=torch.long).to(dev)
     segs_sent1 = torch.tensor(list(segs_sent1), dtype=torch.long).to(dev)
     att_mask_sent1 = torch.tensor(list(att_mask_sent1), dtype=torch.long).to(dev)
-    graph = Batch.from_data_list(list(graph)).to(get_device())
+    graph = Batch.from_data_list(list(graph)).to(dev)
     graph_masking = torch.tensor(list(graph_masking), dtype=torch.long).to(dev)
-    labels = torch.tensor(list(labels), dtype=torch.long).to(dev)
+    try:
+        labels = torch.tensor(list(labels), dtype=torch.long).to(dev)
+    except:
+        pass
 
     return ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict[0], labels
 
 def collate_fn_adv(examples):
-    ids_sent1, segs_sent1, att_mask_sent1, position_sep, labels = map(list, zip(*examples))
+    ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, labels = map(list, zip(*examples))
     dev = get_device()
 
     ids_sent1 = torch.tensor(ids_sent1, dtype=torch.long).to(dev)
@@ -276,11 +279,11 @@ class DataProcessor:
 
 class DiscourseMarkerProcessor(DataProcessor):
 
-  def __init__(self, config):
-    super(DiscourseMarkerProcessor, self).__init__(config)
+  def __init__(self, config, device):
+    super(DiscourseMarkerProcessor, self).__init__(config, device)
 
-    self.mapping = self.load_json(JSON_PATH / "word_to_target.json")
-    self.id_to_word = self.load_json(JSON_PATH / "id_to_word.json")
+    self.mapping = get_json(JSON_PATH / "word_to_target.json")
+    self.id_to_word = get_json(JSON_PATH / "id_to_word.json")
 
   def process_dataset(self, dataset, name="train"):
     result = []
@@ -302,7 +305,7 @@ class DiscourseMarkerProcessor(DataProcessor):
     labels = one_hot_encoder.fit_transform(labels)
 
     for i, (sample, label) in tqdm(enumerate(zip(new_dataset, labels)), desc="creating results..."):
-      result.append([f"{name}_{i}", sample[0], sample[1], label])
+      result.append([f"{name}_{i}", sample[0], sample[1], HeteroData(), -1, -1, {}, label])
 
     examples = self._get_examples(result, name)
     return examples
