@@ -73,17 +73,35 @@ def run():
   dev_set = dataset(data_dev)
   test_set = dataset(data_test)
 
-  if not config["adversarial"]:
-    train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
-    if config["use_hgraph"]:
-      total_metadata = [["node"], [
+  total_metadata = [["node"], [
         ("node", "caused by", "node"),
         ("node", "hinders", "node"),
         ("node", "is before", "node"),
         ("node", "is after", "node"),
         ("node", "causes", "node"),
-        ("node", "hindered by", "node")
-      ]]
+        ("node", "hindered by", "node"),
+        ("node", "object used", "node"),
+        ("node", "is located at", "node"),
+        ("node", "is made up of", "node"),
+        ("node", "has property", "node"),
+        ("node", "is capable of", "node"),
+        ("node", "desires", "node"),
+        ("node", "does not desire", "node"),
+        ("node", "has sub-event", "node"),
+        ("node", "reason", "node"),
+        ("node", "is filled by", "node"),
+        ("node", "need", "node"),
+        ("node", "attribute", "node"),
+        ("node", "effect", "node"),
+        ("node", "react", "node"),
+        ("node", "want", "node"),
+        ("node", "intent", "node")
+  ]]
+
+  if not config["adversarial"]:
+    train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
+    if config["use_hgraph"]:
+
       model = BaselineModelWithHGT(config, total_metadata)
     elif config["use_graph"]:
       model = BaselineModelWithGNN(config)
@@ -94,14 +112,6 @@ def run():
     train_dataloader = DataLoader(train_set, batch_sampler=sampler_train, collate_fn=collate_fn)
 
     if config["use_hgraph"]:
-      total_metadata = [["node"], [
-        ("node", "caused by", "node"),
-        ("node", "hinders", "node"),
-        ("node", "is before", "node"),
-        ("node", "is after", "node"),
-        ("node", "causes", "node"),
-        ("node", "hindered by", "node")
-      ]]
       model = AdversarialModelWithHGT(config, total_metadata)
     else:
       model = AdversarialNet(config)
