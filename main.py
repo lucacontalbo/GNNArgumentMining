@@ -190,7 +190,10 @@ def run():
         best_dev_f1 = -1
   else:
     for epoch in range(config["epochs"]):
-      print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
+      if scheduler: 
+        print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
+      else:
+        print('===== Start training: epoch {} ====='.format(epoch + 1))
       trainer.train(epoch, model, loss_fn, optimizer, train_dataloader,
                     discovery_weight=config["discovery_weight"], adv_weight=config["adv_weight"], scheduler=scheduler)
       dev_a, dev_p, dev_r, dev_f1 = trainer.val(model, dev_dataloader)
