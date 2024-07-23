@@ -334,6 +334,8 @@ class BaselineModelWithHGT(torch.nn.Module):
       print(f"Num of arg1: {num_arg1}")
       print(edge_index_dict)"""
 
+      print(edge_index_dict)
+
       x_dict = {
         node_type: self.dp2(self.bns_gnn_node[node_type][1](
           self.relu(
