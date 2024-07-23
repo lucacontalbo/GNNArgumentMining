@@ -190,7 +190,7 @@ def run():
         best_dev_f1 = -1
   else:
     for epoch in range(config["epochs"]):
-      if scheduler: 
+      if config["scheduler"]:
         print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
       else:
         print('===== Start training: epoch {} ====='.format(epoch + 1))
