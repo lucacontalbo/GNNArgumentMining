@@ -344,7 +344,7 @@ class StudentEssayProcessor(DataProcessor):
         label = row.iloc[4]
         split = row.iloc[5]
         graph = ast.literal_eval(row.iloc[8])
-        graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph)
+        graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph, sent, target)
 
         if not label:
           l = [1,0]
