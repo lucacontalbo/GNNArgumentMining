@@ -2,7 +2,7 @@ import torch
 
 from transformers import AutoModel
 from torch import nn
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, GATConv, HeteroConv
 
 from layers import HGTConv
 from utils import get_device
@@ -215,7 +215,10 @@ class BaselineModelWithHGT(torch.nn.Module):
     self.K = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
     self.V = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
 
+    ### FOR RGCN ###
+    # change the next line of code and add a Relational convolution from torch geometric
     self.convs = torch.nn.ModuleList([HGTConv(self.embed_size_gnn,self.embed_size_gnn, metadata=metadata) for _ in range(3)])
+    ###
     self.bns_gnn_hgt = torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(3)])
     self.bns = torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size) for _ in range(2)])
 
@@ -238,13 +241,13 @@ class BaselineModelWithHGT(torch.nn.Module):
         node_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for _ in range(2)]).to(device)
       }
     
-    for edge_type in metadata[1]:
+    """for edge_type in metadata[1]:
       self.edge_lin[edge_type[1]] = [torch.nn.Linear(in_features=300, out_features=self.embed_size_gnn)]
       self.edge_lin[edge_type[1]].append(torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn))
       self.edge_lin[edge_type[1]] = torch.nn.ModuleList(self.edge_lin[edge_type[1]]).to(device)
       self.bns_gnn_edge = {
         edge_type: torch.nn.ModuleList([torch.nn.BatchNorm1d(num_features=self.embed_size_gnn) for i in range(2)]).to(device)
-      }
+      }"""
 
     self.post_concat = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
     self.relu = torch.nn.ReLU()
@@ -323,8 +326,8 @@ class BaselineModelWithHGT(torch.nn.Module):
       graph_embedding = [0] * len(ids_sent1)
       graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
     else:
-
-      #print(graph.edge_index_dict)
+      ### FOR RGCN
+      # extract the needed RGCN data if needed
       x_dict, edge_index_dict = graph.x_dict, graph.edge_index_dict
 
       x_dict = {
@@ -343,10 +346,13 @@ class BaselineModelWithHGT(torch.nn.Module):
       }
 
       for i in range(len(self.convs)):
+        ### FOR RGCN
+        # adapt the convolution parameters if needed
         out = {
           node_type: self.dp_hgt[i](self.bns_gnn_hgt[i](self.relu(self.convs[i](x_dict, edge_index_dict, edge_attr_dict=None)[node_type])))
           for node_type, _ in x_dict.items()
         } #edge_attr_dict=rel_dict)))
+        ###
       
       out = {
         node_type: self.dp6(self.bns_gnn_node_post[node_type][1](
@@ -403,7 +409,10 @@ class BaselineModelWithGNN(torch.nn.Module):
     self.K = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
     self.V = torch.nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
 
+    ### FOR GAT
+    # change the following convolution, adding several GAT layers
     self.convs = torch.nn.ModuleList([GCNConv(self.embed_size_gnn,self.embed_size_gnn) for i in range(3)])
+    ###
 
     self.pre_mlp1 = torch.nn.Linear(in_features=300, out_features=self.embed_size_gnn)
     self.pre_mlp2 = torch.nn.Linear(in_features=self.embed_size_gnn, out_features=self.embed_size_gnn)
@@ -477,14 +486,18 @@ class BaselineModelWithGNN(torch.nn.Module):
       graph_embedding = [0] * len(ids_sent1)
       graph_embedding = torch.tensor(graph_embedding, dtype=torch.long)
     else:
+      ### FOR GAT
+      # extract the needed GAT data if needed
       x, edge_index = graph.x, graph.edge_index
 
       x = self.bns_gnn[0](self.relu(self.pre_mlp1(x)))
       x = self.bns_gnn[1](self.relu(self.pre_mlp2(x)))
 
       for i in range(len(self.convs)):
+        ### FOR GAT
+        # change the convolution parameters if needed
         out = self.bns_gnn[i+2](self.relu(self.convs[i](x, edge_index)))
-      
+        ###
       out = self.bns_gnn[len(self.convs)+2](self.relu(self.post_mlp1(out)))
       out = self.bns_gnn[len(self.convs)+3](self.relu(self.post_mlp2(out)))
 

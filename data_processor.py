@@ -112,7 +112,7 @@ class DataProcessor:
 
     return examples
   
-  def _get_nodes_and_edges_from_graph(self, graph: list[list[str]], remove_duplicates: bool = False) -> tuple[dict, list[list[int]], list[str]]:
+  def _get_nodes_and_edges_from_graph(self, graph: list[list[str]], remove_duplicates: bool = False, already_found_graph = None) -> tuple[dict, list[list[int]], list[str]]:
     """
     _get_nodes_and_edges_from_graph: list[list[str]] -> (dict, list[list[int]], list[str])
 
@@ -121,14 +121,21 @@ class DataProcessor:
     Edges are returned in the format expected by PyG .edge_index() method.
     """
 
-    counter = 0
-    node_ids = {}
-    edge_index = [[],[]]
-    edge_type = []
-    links_added = set()
+    if already_found_graph is None:
+        counter = 0
+        node_ids = {}
+        edge_index = [[],[]]
+        edge_type = []
+        links_added = set()
+    else:
+        node_ids = already_found_graph["node_ids"]
+        edge_index = already_found_graph["edge_index"]
+        edge_type = already_found_graph["edge_type"]
+        links_added = set()
+        counter = len(node_ids)
 
     for j, walk in enumerate(graph):
-      if j == 50: break
+      #if j == 50: break
       for i in range(0,len(walk),2):
         walk[i] = walk[i].strip()
         if walk[i] not in node_ids.keys():
@@ -228,8 +235,10 @@ class DataProcessor:
 
     return edge_embeddings
 
-  def graph_to_pyg(self, graph, emb_size=300):
-    node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph)
+  def graph_to_pyg(self, graph1, graph2=None, emb_size=300):
+    node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph1)
+    if graph2 is not None:
+        node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph2, already_found_graph={"node_ids": node_ids, "edge_index": edge_index, "edge_type": edge_type})
 
     node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size).to(get_device())
     edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size).to(get_device())
@@ -243,18 +252,12 @@ class DataProcessor:
         edges[link_name][0].append(edge_index_pair[0])
         edges[link_name][1].append(edge_index_pair[1])
       
-      for k,v in self.graphrelation2words.items():
-        data["node", v, "node"].edge_index = torch.tensor([], dtype=torch.int64)
+      #for k,v in self.graphrelation2words.items():
+      #  data["node", v, "node"].edge_index = torch.tensor([], dtype=torch.int64)
 
       for k,v in edges.items():
         data["node", self.graphrelation2words[k], "node"].edge_index = torch.tensor(v, dtype=torch.int64)
       
-      """try:
-        print(data.x_dict)
-        print(data.edge_index_dict)
-      except:
-        print("can't get edge index")"""
-
       edge_dict = {}
       relations = set(edge_type)
       for i, rel in enumerate(edge_type):
@@ -337,8 +340,8 @@ class StudentEssayProcessor(DataProcessor):
 
         label = row.iloc[4]
         split = row.iloc[5]
-        graph = ast.literal_eval(row.iloc[8])
-        graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph)
+        graph1, graph2 = ast.literal_eval(row.iloc[10]), ast.literal_eval(row.iloc[11])
+        graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph1, graph2)
 
         if not label:
           l = [1,0]
@@ -379,8 +382,8 @@ class DebateProcessor(DataProcessor):
 
         label = row.iloc[4]
         split = row.iloc[5]
-        graph = ast.literal_eval(row.iloc[8])
-        graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph)
+        graph1, graph2 = ast.literal_eval(row.iloc[10]), ast.literal_eval(row.iloc[11])
+        graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph1, graph2)
 
         if pipe is not None:
           ds_marker = self.pipe(f"{sent}</s></s>{target}")[0]["label"]
@@ -438,8 +441,8 @@ class MARGProcessor(DataProcessor):
 
               label = row.iloc[3].strip()
               split = row.iloc[-1]
-              graph = ast.literal_eval(row.iloc[5])
-              graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph)
+              graph1, graph2 = ast.literal_eval(row.iloc[8]), ast.literal_eval(row.iloc[9])
+              graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph1, graph2)
 
               l=[0,0,0]
               if label == 'support':

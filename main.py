@@ -33,21 +33,21 @@ def run():
     else:
       processor = StudentEssayProcessor(config, device)
 
-    path_data = DATA_PATH / "student_essay.csv"
+    path_data = DATA_PATH / "student_essay_new.csv"
   elif config["dataset"] == "debate":
     if config["injection"]:
       processor = DebateWithDiscourseInjectionProcessor(config, device)
     else:
       processor = DebateProcessor(config, device)
 
-    path_data = DATA_PATH / "debate.csv"
+    path_data = DATA_PATH / "debate_new.csv"
   elif config["dataset"] == "m-arg":
     if config["injection"]:
       processor = MARGWithDiscourseInjectionProcessor(config, device)
     else:
       processor = MARGProcessor(config, device)
 
-    path_data = DATA_PATH / "presidential_final.csv"
+    path_data = DATA_PATH / "presidential_final_new.csv"
   else:
     raise ValueError(f"{config['dataset']} is not a valid database name (choose between 'student_essay', 'debate' and 'm-arg')")
 
@@ -77,8 +77,8 @@ def run():
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_fn)
     if config["use_hgraph"]:
       total_metadata = [["node"], [
-        ("node", "caused by", "node"),
-        ("node", "hinders", "node"),
+        #("node", "caused by", "node"),
+        #("node", "hinders", "node"),
         ("node", "is before", "node"),
         ("node", "is after", "node"),
         ("node", "causes", "node"),
@@ -87,6 +87,10 @@ def run():
       model = BaselineModelWithHGT(config, total_metadata)
     elif config["use_graph"]:
       model = BaselineModelWithGNN(config)
+    elif config["use_rgcn"]: ### FOR RGCN: add "use_rgcn" to get_config in utils.py
+      ...
+    elif config["use_gat"]: ### FOR GAT: add "use_gat" to get_config in utils.py
+      ...
     else:
       model = BaselineModel(config)
   else:
@@ -134,6 +138,8 @@ def run():
 
   if config["scheduler"]:
     scheduler = LinearLR(optimizer, start_factor=1, end_factor=0.5, total_iters=30)
+  else:
+    scheduler = None
 
   loss_fn = nn.CrossEntropyLoss(weight=torch.tensor(config["class_weight"]).to(device))
 
@@ -150,9 +156,11 @@ def run():
 
     for discovery_weight in range_disc:
       for adv_weight in range_adv:
-        if discovery_weight < 0.4: continue
         for epoch in range(config["epochs"]):
-          print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
+          if not config["scheduler"]:
+              print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, config["lr"]))
+          else:
+              print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
           print(f"*** trying with discovery_weight = {discovery_weight}, adv_weight = {adv_weight}")
           trainer.train(epoch, model, loss_fn, optimizer, train_dataloader, discovery_weight=discovery_weight, adv_weight=adv_weight, scheduler=scheduler)
           dev_a, dev_p, dev_r, dev_f1 = trainer.val(model, dev_dataloader)
@@ -186,16 +194,23 @@ def run():
         optimizer = AdamW(model.parameters(), lr=config["lr"], weight_decay=1e-2)
         if config["scheduler"]:
            scheduler = LinearLR(optimizer, start_factor=1, end_factor=0.5, total_iters=30)
+        else:
+           scheduler = None
 
         best_dev_f1 = -1
   else:
     for epoch in range(config["epochs"]):
-      print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
+      if not config["scheduler"]:
+          print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, config["lr"]))
+      else:
+          print('===== Start training: epoch {}, lr {} ====='.format(epoch + 1, scheduler.get_lr()))
       trainer.train(epoch, model, loss_fn, optimizer, train_dataloader,
                     discovery_weight=config["discovery_weight"], adv_weight=config["adv_weight"], scheduler=scheduler)
       dev_a, dev_p, dev_r, dev_f1 = trainer.val(model, dev_dataloader)
       test_a, test_p, test_r, test_f1 = trainer.val(model, test_dataloader)
       if dev_f1 > best_dev_f1:
+        ### FOR EVERYONE
+        # change the saving mechanism as you like
         best_dev_f1 = dev_f1
         best_test_acc, best_test_pre, best_test_rec, best_test_f1 = test_a, test_p, test_r, test_f1
         torch.save(model.state_dict(), f"./{config['dataset']}_model.pt")
