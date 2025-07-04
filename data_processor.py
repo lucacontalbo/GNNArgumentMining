@@ -137,13 +137,13 @@ class DataProcessor:
     for j, walk in enumerate(graph):
       #if j == 50: break
       for i in range(0,len(walk),2):
-        walk[i] = walk[i].strip()
+        #walk[i] = walk[i].strip()
         if walk[i] not in node_ids.keys():
            node_ids[walk[i]] = counter
            counter += 1
       
       for i in range(1,len(walk),2):
-        walk[i] = walk[i].strip()
+        #walk[i] = walk[i].strip()
         if remove_duplicates and (node_ids[walk[i-1]], node_ids[walk[i+1]]) in links_added:
           continue
 
@@ -235,7 +235,7 @@ class DataProcessor:
 
     return edge_embeddings
 
-  def graph_to_pyg(self, graph1, graph2=None, emb_size=300):
+  def graph_to_pyg(self, graph1, graph2=None, emb_size=300, text1="", text2=""):
     node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph1)
     if graph2 is not None:
         node_ids, edge_index, edge_type = self._get_nodes_and_edges_from_graph(graph2, already_found_graph={"node_ids": node_ids, "edge_index": edge_index, "edge_type": edge_type})
@@ -273,12 +273,33 @@ class DataProcessor:
       edge_dict = {}
 
     if len(node_ids.keys()) > 0:
-      arg0_pos, arg1_pos = node_ids["[Arg1]"], node_ids["[Arg2]"]
+      #arg0_pos, arg1_pos = node_ids["[Arg1]"], node_ids["[Arg2]"]
+
+      longest_node1 = get_longest_string(graph1)
+      longest_node2 = get_longest_string(graph2)
+      if longest_node1 is None and longest_node2 is not None:
+          longest_node1 = longest_node2
+      elif longest_node2 is None and longest_node1 is not None:
+          longest_node2 = longest_node1
+      elif longest_node1 is None and longest_node2 is None:
+          raise ValueError("graph is empty")
+
+      arg0_pos, arg1_pos = node_ids[longest_node1], node_ids[longest_node2]
     else:
       arg0_pos, arg1_pos = -1, -1
 
     return data, arg0_pos, arg1_pos, edge_dict
 
+def get_longest_string(graph):
+    max_length = 0
+    element = None
+
+    for el in graph:
+        if len(el[0]) > max_length:
+            max_length = len(el[0])
+            element = el[0]
+
+    return element
 
 class DiscourseMarkerProcessor(DataProcessor):
 
@@ -427,6 +448,7 @@ class MARGProcessor(DataProcessor):
       result_test = []
 
       df = pd.read_csv(file_path)
+      df = df.drop("Unnamed: 0", axis="columns")
       for i,row in tqdm(df.iterrows()):
               sample_id = row.iloc[0]
               sent = row.iloc[1].strip()
@@ -440,9 +462,9 @@ class MARGProcessor(DataProcessor):
                 target = ds_marker + " " + target
 
               label = row.iloc[3].strip()
-              split = row.iloc[-1]
-              graph1, graph2 = ast.literal_eval(row.iloc[8]), ast.literal_eval(row.iloc[9])
-              graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph1, graph2)
+              split = row.iloc[-3]
+              graph1, graph2 = ast.literal_eval(row.iloc[9]), ast.literal_eval(row.iloc[10])
+              graph, arg0_pos, arg1_pos, edge_dict = self.graph_to_pyg(graph1, graph2, text1=sent, text2=target)
 
               l=[0,0,0]
               if label == 'support':

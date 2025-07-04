@@ -51,6 +51,7 @@ def run():
   else:
     raise ValueError(f"{config['dataset']} is not a valid database name (choose between 'student_essay', 'debate' and 'm-arg')")
 
+  print("Reading the data...")
   data_train, data_dev, data_test = processor.read_input_files(path_data, name="train")
 
   if config["adversarial"]:
