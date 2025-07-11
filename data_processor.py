@@ -127,6 +127,9 @@ class DataProcessor:
         edge_index = [[],[]]
         edge_type = []
         links_added = set()
+        general_node = "graph one"
+        node_ids[general_node] = counter
+        counter += 1
     else:
         node_ids = already_found_graph["node_ids"]
         edge_index = already_found_graph["edge_index"]
@@ -134,12 +137,21 @@ class DataProcessor:
         links_added = set()
         counter = len(node_ids)
 
+        general_node = "graph two"
+        node_ids[general_node] = counter
+        counter += 1
+
     for j, walk in enumerate(graph):
       #if j == 50: break
       for i in range(0,len(walk),2):
         #walk[i] = walk[i].strip()
         if walk[i] not in node_ids.keys():
            node_ids[walk[i]] = counter
+           if (node_ids[walk[i]], node_ids[general_node]) not in links_added:
+             edge_index[0].append(node_ids[walk[i]])
+             edge_index[1].append(node_ids[general_node])
+             edge_type.append("belongs")
+             links_added.add((node_ids[walk[i]], node_ids[general_node]))
            counter += 1
       
       for i in range(1,len(walk),2):
@@ -152,8 +164,7 @@ class DataProcessor:
         edge_type.append(walk[i])
 
         links_added.add((node_ids[walk[i-1]], node_ids[walk[i+1]]))
-    
-    
+
     return node_ids, edge_index, edge_type
 
   @functools.cache
@@ -273,9 +284,9 @@ class DataProcessor:
       edge_dict = {}
 
     if len(node_ids.keys()) > 0:
-      #arg0_pos, arg1_pos = node_ids["[Arg1]"], node_ids["[Arg2]"]
+      arg0_pos, arg1_pos = node_ids["graph one"], node_ids["graph two"]
 
-      longest_node1 = get_longest_string(graph1)
+      """longest_node1 = get_longest_string(graph1)
       longest_node2 = get_longest_string(graph2)
       if longest_node1 is None and longest_node2 is not None:
           longest_node1 = longest_node2
@@ -284,7 +295,7 @@ class DataProcessor:
       elif longest_node1 is None and longest_node2 is None:
           raise ValueError("graph is empty")
 
-      arg0_pos, arg1_pos = node_ids[longest_node1], node_ids[longest_node2]
+      arg0_pos, arg1_pos = node_ids[longest_node1], node_ids[longest_node2]"""
     else:
       arg0_pos, arg1_pos = -1, -1
 
@@ -439,7 +450,7 @@ class MARGProcessor(DataProcessor):
 
   def __init__(self, config, device):
     super(MARGProcessor, self).__init__(config, device)
-    self.pipe = pipeline("text-classification", model="sileod/roberta-base-discourse-marker-prediction")
+    #self.pipe = pipeline("text-classification", model="sileod/roberta-base-discourse-marker-prediction")
 
   def read_input_files(self, file_path, name="train", pipe=None):
 
