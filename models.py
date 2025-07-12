@@ -514,6 +514,28 @@ class BaselineModelWithGNN(torch.nn.Module):
 
     return predictions
 
+
+class BaselineModelWithGAT(BaselineModelWithGNN):
+  """
+  Inherits from the GCN model and swaps the convolutional layers.
+  """
+
+  def __init__(self, config):
+    # 1. Initialize the parent class first.
+    # This will run the ENTIRE __init__ of BaselineModelWithGCN,
+    # including creating the GCN layers.
+    super().__init__(config)
+
+    # 2. Overwrite the convolutional layers with GATConv layers.
+    # This replaces the GCN layers that were just created.
+    self.convs = torch.nn.ModuleList(
+      [GATConv(self.embed_size_gnn, self.embed_size_gnn, heads=1) for _ in range(3)]
+    )
+
+    # 3. (Optional but good practice) Re-initialize the weights for the new layers.
+    self._init_weights(self.convs)
+
+
 class AdversarialModelWithHGT(torch.nn.Module):
   def __init__(self, config, metadata):
     super(AdversarialModelWithHGT, self).__init__()

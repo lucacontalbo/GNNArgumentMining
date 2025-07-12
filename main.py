@@ -1,3 +1,7 @@
+import json
+import os
+from datetime import datetime
+
 import torch
 import datasets
 import pickle
@@ -17,7 +21,8 @@ from data_processor import StudentEssayProcessor, StudentEssayWithDiscourseInjec
                             DiscourseMarkerProcessor, dataset,\
                             collate_fn, collate_fn_adv
 from batch_sampler import BalancedSampler
-from models import AdversarialNet, BaselineModel, BaselineModelWithGNN, BaselineModelWithHGT, AdversarialModelWithHGT
+from models import AdversarialNet, BaselineModel, BaselineModelWithGNN, BaselineModelWithHGT, AdversarialModelWithHGT, \
+  BaselineModelWithGAT
 from train import Trainer
 
 DATA_PATH = Path("data/")
@@ -50,6 +55,16 @@ def run():
     path_data = DATA_PATH / "presidential_final_new.csv"
   else:
     raise ValueError(f"{config['dataset']} is not a valid database name (choose between 'student_essay', 'debate' and 'm-arg')")
+
+  timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+  if config["job_id"] is None:
+    config["job_id"] = timestamp
+  else:
+    config["job_id"] = str(config["job_id"]) + "_" + timestamp
+  res_dir = f'results/{config["dataset"]}/{config["job_id"]}/'
+  os.makedirs(res_dir, exist_ok=True)
+  with open(f"{res_dir}/args.json", 'w') as f:
+    json.dump(config, f, indent=4)
 
   print("Reading the data...")
   data_train, data_dev, data_test = processor.read_input_files(path_data, name="train")
@@ -91,7 +106,7 @@ def run():
     elif config["use_rgcn"]: ### FOR RGCN: add "use_rgcn" to get_config in utils.py
       ...
     elif config["use_gat"]: ### FOR GAT: add "use_gat" to get_config in utils.py
-      ...
+      model = BaselineModelWithGAT(config)
     else:
       model = BaselineModel(config)
   else:
@@ -217,13 +232,25 @@ def run():
         torch.save(model.state_dict(), f"./{config['dataset']}_model.pt")
 
     print('*** best result on test set ***')
-    print(best_test_acc)
-    print(best_test_pre)
-    print(best_test_rec)
-    print(best_test_f1, end="\n")
+    # print(best_test_acc)
+    # print(best_test_pre)
+    # print(best_test_rec)
+    # print(best_test_f1, end="\n")
     result_metrics.append([best_test_acc, best_test_pre, best_test_rec, best_test_f1])
+    metrics = {
+      "accuracy": best_test_acc,
+      "precision": best_test_pre,
+      "recall": best_test_rec,
+      "f1": best_test_f1
+    }
+    print(metrics)
+    with open(f"{res_dir}/metrics.json", 'w') as f:
+      json.dump(metrics, f, indent=4)
+    # create an empty file to indicate that the run is finished
+    with open(f"{res_dir}/ok.txt", 'w') as f:
+      f.write("")
 
-  print(f"Overall metrics: {result_metrics}")
+  # print(f"Overall metrics: {result_metrics}")
 
 if __name__ == "__main__":
   run()

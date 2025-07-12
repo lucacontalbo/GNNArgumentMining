@@ -60,6 +60,9 @@ def get_config():
     parser.add_argument('--visualize', type=str, default="", help='Visualize results')
     parser.add_argument('--dataset', type=str, required=True, help='Dataset name')
     parser.add_argument('--scheduler', action="store_true", default=0, help='Use lr scheduler')
+    parser.add_argument('--use-rgcn', action="store_true")
+    parser.add_argument('--use-gat', action="store_true")
+    parser.add_argument('--job-id', default=None, help='If you are using slurm, set to $SLURM_JOB_ID')
 
     parser.add_argument('--class_weight', type=float, nargs='+', default=[], help='Class weights')
 
