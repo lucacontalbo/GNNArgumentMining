@@ -1,0 +1,5 @@
+.idea/
+results/
+data/
+pretrained_embs/
+*.pt
