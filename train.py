@@ -62,6 +62,8 @@ class Trainer:
             else:
                 if self.config["use_hgraph"]:
                     out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict)
+                elif self.config["use_rgcn"]:
+                    out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict)
                 elif self.config["use_graph"] or self.config["use_gat"]:
                     out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)
                 else:
@@ -98,7 +100,7 @@ class Trainer:
             ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict, labels = batch
 
             with torch.no_grad():
-                if self.config["use_hgraph"]:
+                if self.config["use_hgraph"] or self.config["use_rgcn"]:
                     out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking, edge_dict)
                 elif self.config["use_graph"] or self.config["use_gat"]:
                     out = model(ids_sent1, segs_sent1, att_mask_sent1, graph, graph_masking)

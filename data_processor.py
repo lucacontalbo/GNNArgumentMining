@@ -254,7 +254,7 @@ class DataProcessor:
     node_feature_matrix = self._get_node_features(node_ids, emb_size=emb_size).to(get_device())
     edge_feature_matrix = self._get_edge_features(edge_type, emb_size=emb_size).to(get_device())
 
-    if self.config["use_hgraph"]:
+    if self.config["use_hgraph"] or self.config["use_rgcn"]:
       data = HeteroData()
       data["node"].x = node_feature_matrix
 

@@ -22,7 +22,7 @@ from data_processor import StudentEssayProcessor, StudentEssayWithDiscourseInjec
                             collate_fn, collate_fn_adv
 from batch_sampler import BalancedSampler
 from models import AdversarialNet, BaselineModel, BaselineModelWithGNN, BaselineModelWithHGT, AdversarialModelWithHGT, \
-  BaselineModelWithGAT
+  BaselineModelWithGAT, BaselineModelWithRGCN
 from train import Trainer
 
 DATA_PATH = Path("data/")
@@ -98,13 +98,23 @@ def run():
         ("node", "is before", "node"),
         ("node", "is after", "node"),
         ("node", "causes", "node"),
-        ("node", "hindered by", "node")
+        ("node", "hindered by", "node"),
+        ("node", "belongs", "node")
       ]]
       model = BaselineModelWithHGT(config, total_metadata)
     elif config["use_graph"]:
       model = BaselineModelWithGNN(config)
     elif config["use_rgcn"]: ### FOR RGCN: add "use_rgcn" to get_config in utils.py
-      ...
+      total_metadata = [["node"], [
+        # ("node", "caused by", "node"),
+        # ("node", "hinders", "node"),
+        ("node", "is before", "node"),
+        ("node", "is after", "node"),
+        ("node", "causes", "node"),
+        ("node", "hindered by", "node"),
+        ("node", "belongs", "node")
+      ]]
+      model = BaselineModelWithRGCN(config, total_metadata)
     elif config["use_gat"]: ### FOR GAT: add "use_gat" to get_config in utils.py
       model = BaselineModelWithGAT(config)
     else:

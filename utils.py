@@ -44,6 +44,7 @@ def get_config():
     parser.add_argument('--embed_size', type=int, default=768, help='Embedding size')
     parser.add_argument('--use_graph', action="store_true", default=0, help='Use graph embeddings')
     parser.add_argument('--use_hgraph', action="store_true", default=0, help='Use heterogeneous graph embeddings')
+    parser.add_argument('--use_rgcn', action="store_true", default=0, help='Use R-GCN embeddings')
     parser.add_argument('--first_last_avg', type=int, default=1, help='Use first and last average')
     parser.add_argument('--seed', type=int, default=1, help='Random seed')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size')
