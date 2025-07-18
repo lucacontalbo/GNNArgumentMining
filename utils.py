@@ -45,6 +45,7 @@ def get_config():
     parser.add_argument('--use_graph', action="store_true", default=0, help='Use graph embeddings')
     parser.add_argument('--use_hgraph', action="store_true", default=0, help='Use heterogeneous graph embeddings')
     parser.add_argument('--use_rgcn', action="store_true", default=0, help='Use R-GCN embeddings')
+    parser.add_argument('--use_gat', action="store_true")
     parser.add_argument('--first_last_avg', type=int, default=1, help='Use first and last average')
     parser.add_argument('--seed', type=int, default=1, help='Random seed')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size')
@@ -61,8 +62,6 @@ def get_config():
     parser.add_argument('--visualize', type=str, default="", help='Visualize results')
     parser.add_argument('--dataset', type=str, required=True, help='Dataset name')
     parser.add_argument('--scheduler', action="store_true", default=0, help='Use lr scheduler')
-    parser.add_argument('--use-rgcn', action="store_true")
-    parser.add_argument('--use-gat', action="store_true")
     parser.add_argument('--job-id', default=None, help='If you are using slurm, set to $SLURM_JOB_ID')
 
     parser.add_argument('--class_weight', type=float, nargs='+', default=[], help='Class weights')
